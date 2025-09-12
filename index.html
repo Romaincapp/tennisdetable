@@ -157,6 +157,49 @@
             box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
         }
         
+        .guide-box {
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #d5f4e6, #a8e6cf);
+            border-radius: 12px;
+            border-left: 5px solid #27ae60;
+        }
+        
+        .guide-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .guide-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+        
+        .guide-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .key {
+            background: #34495e;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: center;
+        }
+        
         .divisions {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -715,7 +758,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏓 Tournoi de Tennis de Table2.1</h1>
+            <h1>🏓 Tournoi de Tennis de Tablev2.2</h1>
             <p>Gestion simple et efficace de votre tournoi - 4 tours par joueur</p>
         </div>
         
@@ -773,7 +816,27 @@
                     🎯 Générer les Matchs par Tours (4 matchs/joueur - 3 sets/match)
                 </button>
                 
-                <button class="btn btn-success" onclick="updateRankings()" style="font-size: 16px; padding: 12px 20px; margin-left: 15px;">
+                <!-- Guide de saisie -->
+                <div class="guide-box">
+                    <div class="guide-title">
+                        💡 Guide de saisie des scores
+                    </div>
+                    <div class="guide-items">
+                        <div class="guide-item">
+                            <div class="key">TAB</div>
+                            <span>Passer au champ suivant</span>
+                        </div>
+                        <div class="guide-item">
+                            <div class="key">ENTER</div>
+                            <span>Mettre à jour le match</span>
+                        </div>
+                        <div class="guide-item">
+                            <span>🏆 Le match se termine dès qu'un joueur gagne 2 sets</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-success" onclick="updateRankings()" style="font-size: 16px; padding: 12px 20px;">
                     🏆 Mettre à jour les Classements
                 </button>
             </div>
@@ -1167,7 +1230,7 @@
                             <div class="tour-section">
                                 <div class="tour-header" onclick="toggleTour(${division}, ${tour})">
                                     <div class="tour-title">🎯 Tour ${tour}</div>
-                                    <div class="tour-progress">${completedMatches}/${totalMatches} terminés</div>
+                                    <div class="tour-progress" id="progress-d${division}-t${tour}">${completedMatches}/${totalMatches} terminés</div>
                                 </div>
                                 <div class="tour-matches" id="tour${division}-${tour}">
                         `;
@@ -1222,13 +1285,15 @@
                                                    placeholder="" min="0" max="30"
                                                    value="${match.sets[setIndex].player1Score || ''}" 
                                                    ${setDisabled}
-                                                   onchange="updateSetScore(${division}, ${globalIndex}, ${setIndex}, 'player1Score', this.value)">
+                                                   onchange="updateSetScore(${division}, ${globalIndex}, ${setIndex}, 'player1Score', this.value)"
+                                                   onkeydown="handleEnterKey(event, ${division}, ${globalIndex})">
                                             <span class="score-separator">-</span>
                                             <input type="number" class="score-input" 
                                                    placeholder="" min="0" max="30"
                                                    value="${match.sets[setIndex].player2Score || ''}"
                                                    ${setDisabled}
-                                                   onchange="updateSetScore(${division}, ${globalIndex}, ${setIndex}, 'player2Score', this.value)">
+                                                   onchange="updateSetScore(${division}, ${globalIndex}, ${setIndex}, 'player2Score', this.value)"
+                                                   onkeydown="handleEnterKey(event, ${division}, ${globalIndex})">
                                         </div>
                                     </div>
                                 `;
@@ -1295,10 +1360,144 @@
             }
         }
 
-        // FONCTION SIMPLIFIÉE - pas de modification DOM
+        // FONCTION SIMPLIFIÉE - Juste sauvegarder le score
         function updateSetScore(division, matchIndex, setIndex, scoreField, value) {
             matches[division][matchIndex].sets[setIndex][scoreField] = value;
             console.log(`Score sauvé: ${scoreField} = ${value}`);
+        }
+
+        // NOUVELLE FONCTION - Gestion de la touche ENTER
+        function handleEnterKey(event, division, matchIndex) {
+            if (event.key === 'Enter') {
+                console.log(`🎯 ENTER appuyé - Mise à jour du match D${division}-M${matchIndex}`);
+                
+                // Sauvegarder d'abord le score actuel si nécessaire
+                const currentValue = event.target.value;
+                event.target.dispatchEvent(new Event('change'));
+                
+                // État avant mise à jour
+                const wasCompleted = matches[division][matchIndex].completed;
+                
+                // Recalculer l'état du match
+                checkMatchCompletion(division, matchIndex);
+                
+                // État après mise à jour
+                const isNowCompleted = matches[division][matchIndex].completed;
+                
+                // Mettre à jour visuellement SEULEMENT ce match
+                updateSingleMatchDisplay(division, matchIndex);
+                
+                // Animation de confirmation
+                const matchElement = document.querySelector(`[data-match-id="d${division}-m${matchIndex}"]`);
+                if (matchElement) {
+                    matchElement.style.transform = 'scale(1.02)';
+                    matchElement.style.boxShadow = '0 5px 20px rgba(27, 164, 60, 0.4)';
+                    matchElement.style.transition = 'all 0.3s ease';
+                    
+                    setTimeout(() => {
+                        matchElement.style.transform = '';
+                        matchElement.style.boxShadow = '';
+                    }, 400);
+                }
+                
+                // Message si le match vient de se terminer
+                if (!wasCompleted && isNowCompleted) {
+                    const match = matches[division][matchIndex];
+                    console.log(`🎉 MATCH TERMINÉ ! ${match.winner} a gagné !`);
+                    
+                    // Son de victoire visuel
+                    setTimeout(() => {
+                        if (matchElement) {
+                            matchElement.style.background = '#d5f4e6';
+                            matchElement.style.borderColor = '#27ae60';
+                        }
+                    }, 200);
+                }
+                
+                console.log(`✅ Match mis à jour avec ENTER`);
+            }
+        }
+
+        // NOUVELLE FONCTION - Mise à jour d'un seul match
+        function updateSingleMatchDisplay(division, matchIndex) {
+            const match = matches[division][matchIndex];
+            const matchElement = document.querySelector(`[data-match-id="d${division}-m${matchIndex}"]`);
+            
+            if (!matchElement) return;
+            
+            // Mettre à jour le statut du match
+            const statusElement = matchElement.querySelector('.match-status');
+            if (statusElement) {
+                if (match.completed) {
+                    statusElement.className = 'match-status status-completed';
+                    statusElement.textContent = 'Terminé';
+                    matchElement.classList.add('completed');
+                } else {
+                    statusElement.className = 'match-status status-pending';
+                    statusElement.textContent = 'En cours';
+                    matchElement.classList.remove('completed');
+                }
+            }
+            
+            // Mettre à jour le résultat
+            const resultElement = matchElement.querySelector('.match-result');
+            if (resultElement) {
+                let resultText = 'En attente des résultats';
+                let resultClass = 'result-pending';
+                
+                if (match.completed && match.winner) {
+                    let player1Sets = 0;
+                    let player2Sets = 0;
+                    
+                    match.sets.forEach(set => {
+                        if (set.player1Score !== '' && set.player2Score !== '') {
+                            const score1 = parseInt(set.player1Score);
+                            const score2 = parseInt(set.player2Score);
+                            if (score1 > score2) player1Sets++;
+                            else if (score2 > score1) player2Sets++;
+                        }
+                    });
+                    
+                    const winnerSets = match.winner === match.player1 ? player1Sets : player2Sets;
+                    const loserSets = match.winner === match.player1 ? player2Sets : player1Sets;
+                    
+                    resultText = `🏆 ${match.winner} remporte le match (${winnerSets}-${loserSets})`;
+                    resultClass = 'result-completed';
+                }
+                
+                resultElement.className = `match-result ${resultClass}`;
+                resultElement.textContent = resultText;
+            }
+            
+            // Désactiver le Set 3 si nécessaire
+            if (match.completed) {
+                const set3Inputs = matchElement.querySelectorAll('.set:nth-child(3) .score-input');
+                set3Inputs.forEach(input => {
+                    input.disabled = true;
+                    input.parentElement.parentElement.classList.add('set-disabled');
+                });
+            }
+            
+            // Mettre à jour la progression du tour
+            updateTourProgress(division, match.tour);
+        }
+
+        // NOUVELLE FONCTION - Mise à jour progression d'un tour
+        function updateTourProgress(division, tour) {
+            const progressElement = document.getElementById(`progress-d${division}-t${tour}`);
+            if (!progressElement) return;
+            
+            const tourMatches = matches[division].filter(m => m.tour === tour);
+            const completedMatches = tourMatches.filter(m => m.completed).length;
+            const totalMatches = tourMatches.length;
+            
+            progressElement.textContent = `${completedMatches}/${totalMatches} terminés`;
+            
+            // Animation de mise à jour
+            progressElement.style.background = 'rgba(46, 204, 113, 0.3)';
+            setTimeout(() => {
+                progressElement.style.background = 'rgba(255,255,255,0.2)';
+            }, 500);
         }
 
         function checkMatchCompletion(division, matchIndex) {
