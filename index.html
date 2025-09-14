@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournoi de Tennis de Table</title>
+    <title>Championnat Tennis de Table</title>
     <style>
         * {
             margin: 0;
@@ -41,8 +41,111 @@
             margin-bottom: 10px;
         }
         
+        /* ONGLETS */
+        .tabs-container {
+            background: #f8f9fa;
+            border-bottom: 2px solid #ecf0f1;
+            padding: 0 30px;
+            overflow-x: auto;
+        }
+        
+        .tabs {
+            display: flex;
+            align-items: center;
+            min-width: max-content;
+            gap: 5px;
+        }
+        
+        .tab {
+            background: #ecf0f1;
+            color: #7f8c8d;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            position: relative;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #2c3e50;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tab:hover:not(.active) {
+            background: #d5dbdb;
+            color: #34495e;
+        }
+        
+        .tab.general-ranking {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .tab.general-ranking.active {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            transform: scale(1.02);
+        }
+        
+        .add-day-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .add-day-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 10px rgba(39, 174, 96, 0.4);
+        }
+        
+        .remove-day {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+        }
+        
+        .tab:hover .remove-day {
+            display: block;
+        }
+        
         .content {
             padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .section {
@@ -571,6 +674,44 @@
             color: #2c3e50;
         }
         
+        /* CLASSEMENT GÉNÉRAL */
+        .general-ranking-section {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 2px solid #f39c12;
+        }
+        
+        .general-ranking-section h2 {
+            color: #e67e22;
+        }
+        
+        .general-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .general-stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border-left: 4px solid #f39c12;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .general-stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #f39c12;
+            margin-bottom: 5px;
+        }
+        
+        .general-stat-label {
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+        
         .player-modal {
             display: none;
             position: fixed;
@@ -806,152 +947,177 @@
             .control-buttons {
                 grid-template-columns: 1fr;
             }
+            
+            .tabs {
+                padding-bottom: 10px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏓 Tournoi de Tennis de Table3.0</h1>
-            <p>Gestion complète avec sauvegarde automatique - 1 match par joueur par tour</p>
+            <h1>🏆 Championnat Tennis de Table</h1>
+            <p>Gestion complète multi-journées avec classement général</p>
+        </div>
+        
+        <!-- ONGLETS -->
+        <div class="tabs-container">
+            <div class="tabs" id="tabs">
+                <button class="tab active" onclick="switchTab(1)" data-day="1">
+                    Journée 1
+                    <button class="remove-day" onclick="event.stopPropagation(); removeDay(1)" title="Supprimer">×</button>
+                </button>
+                <button class="add-day-btn" onclick="addNewDay()" title="Ajouter une journée">+</button>
+                <button class="tab general-ranking" onclick="switchToGeneralRanking()" data-tab="general">
+                    🏆 Classement Général
+                </button>
+            </div>
         </div>
         
         <div class="content">
-            <div class="section">
-                <h2>👥 Gestion des Joueurs</h2>
-                
-                <div class="input-group">
-                    <input type="text" id="playerName" placeholder="Nom du joueur" style="flex: 1; min-width: 200px;">
-                    <select id="playerDivision">
-                        <option value="1">Division 1</option>
-                        <option value="2">Division 2</option>
-                        <option value="3">Division 3</option>
-                    </select>
-                    <button class="btn btn-success" onclick="addPlayer()">Ajouter Joueur</button>
-                </div>
-                
-                <div class="import-section">
-                    <div class="import-box">
-                        <h4>📁 Import fichier Excel/CSV</h4>
-                        <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 15px;">
-                            Format : Colonne A = Noms, Colonne B = Division (1,2,3)
-                        </p>
-                        <div class="file-input-wrapper">
-                            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
-                            <label for="fileInput" class="file-input-label">
-                                📎 Choisir un fichier
-                            </label>
+            <!-- CONTENU JOURNÉE -->
+            <div class="tab-content day-content active" id="day-1">
+                <div class="section">
+                    <h2>👥 Gestion des Joueurs - Journée 1</h2>
+                    
+                    <div class="input-group">
+                        <input type="text" id="playerName" placeholder="Nom du joueur" style="flex: 1; min-width: 200px;">
+                        <select id="playerDivision">
+                            <option value="1">Division 1</option>
+                            <option value="2">Division 2</option>
+                            <option value="3">Division 3</option>
+                        </select>
+                        <button class="btn btn-success" onclick="addPlayer()">Ajouter Joueur</button>
+                    </div>
+                    
+                    <div class="import-section">
+                        <div class="import-box">
+                            <h4>📁 Import fichier Excel/CSV</h4>
+                            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 15px;">
+                                Format : Colonne A = Noms, Colonne B = Division (1,2,3)
+                            </p>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+                                <label for="fileInput" class="file-input-label">
+                                    📎 Choisir un fichier
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="import-box">
+                            <h4>📋 Copier-coller par division</h4>
+                            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 15px;">
+                                Collez une liste de noms (un par ligne)
+                            </p>
+                            <div style="display: flex; gap: 10px; flex-direction: column;">
+                                <select id="bulkDivision" style="width: 100%;">
+                                    <option value="1">Division 1</option>
+                                    <option value="2">Division 2</option>
+                                    <option value="3">Division 3</option>
+                                </select>
+                                <button class="btn" onclick="showBulkInput()" style="width: 100%;">
+                                    📝 Ajouter en masse
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="import-box">
-                        <h4>📋 Copier-coller par division</h4>
-                        <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 15px;">
-                            Collez une liste de noms (un par ligne)
-                        </p>
-                        <div style="display: flex; gap: 10px; flex-direction: column;">
-                            <select id="bulkDivision" style="width: 100%;">
-                                <option value="1">Division 1</option>
-                                <option value="2">Division 2</option>
-                                <option value="3">Division 3</option>
-                            </select>
-                            <button class="btn" onclick="showBulkInput()" style="width: 100%;">
-                                📝 Ajouter en masse
-                            </button>
+                    <button class="btn" onclick="generateMatches()" style="font-size: 18px; padding: 15px 25px; display: block; margin: 20px auto;">
+                        🎯 Générer les Matchs (Round-Robin)
+                    </button>
+                    
+                    <div class="guide-box">
+                        <div class="guide-title">
+                            💡 Guide d'utilisation
                         </div>
+                        <div class="guide-items">
+                            <div class="guide-item">
+                                <div class="key">TAB</div>
+                                <span>Passer au champ suivant</span>
+                            </div>
+                            <div class="guide-item">
+                                <div class="key">ENTER</div>
+                                <span>Mettre à jour le match</span>
+                            </div>
+                            <div class="guide-item">
+                                <span>🏆 Le match se termine dès qu'un joueur gagne 2 sets</span>
+                            </div>
+                            <div class="guide-item">
+                                <span>💾 Sauvegarde automatique</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-buttons">
+                        <button class="btn btn-success" onclick="updateRankings()">
+                            🏆 Classements
+                        </button>
+                        <button class="btn" onclick="exportChampionship()">
+                            💾 Exporter JSON
+                        </button>
+                        <button class="btn" onclick="showImportModal()">
+                            📁 Importer JSON
+                        </button>
+                        <button class="btn btn-danger" onclick="clearAllData()">
+                            🗑️ Réinitialiser
+                        </button>
                     </div>
                 </div>
                 
-                <button class="btn" onclick="generateMatches()" style="font-size: 18px; padding: 15px 25px; display: block; margin: 20px auto;">
-                    🎯 Générer les Matchs par Tours (1 match/joueur/tour - Round-Robin)
-                </button>
-                
-                <div class="guide-box">
-                    <div class="guide-title">
-                        💡 Guide de saisie des scores
-                    </div>
-                    <div class="guide-items">
-                        <div class="guide-item">
-                            <div class="key">TAB</div>
-                            <span>Passer au champ suivant</span>
-                        </div>
-                        <div class="guide-item">
-                            <div class="key">ENTER</div>
-                            <span>Mettre à jour le match</span>
-                        </div>
-                        <div class="guide-item">
-                            <span>🏆 Le match se termine dès qu'un joueur gagne 2 sets</span>
-                        </div>
-                        <div class="guide-item">
-                            <span>💾 Sauvegarde automatique à chaque action</span>
-                        </div>
-                    </div>
+                <div class="divisions" id="divisions-1">
+                    <!-- Les divisions seront générées dynamiquement -->
                 </div>
                 
-                <div class="control-buttons">
-                    <button class="btn btn-success" onclick="updateRankings()">
-                        🏆 Classements
-                    </button>
-                    <button class="btn" onclick="exportTournament()">
-                        💾 Exporter JSON
-                    </button>
-                    <button class="btn" onclick="showImportModal()">
-                        📁 Importer JSON
-                    </button>
-                    <button class="btn btn-danger" onclick="clearAllData()">
-                        🗑️ Réinitialiser
-                    </button>
+                <div class="rankings-section" id="rankings-1" style="display: none;">
+                    <div class="rankings-header">
+                        <div class="rankings-title">🏆 Classements Journée 1</div>
+                        <div class="rankings-toggle">
+                            <button class="toggle-btn active" onclick="showRankings('points')">Par Points</button>
+                            <button class="toggle-btn" onclick="showRankings('winrate')">Par % Victoires</button>
+                        </div>
+                    </div>
+                    <div id="rankingsContent-1"></div>
+                </div>
+                
+                <div class="stats" id="stats-1" style="display: none;">
+                    <h3>📊 Statistiques Journée 1</h3>
+                    <div class="stats-grid" id="statsContent-1"></div>
                 </div>
             </div>
             
-            <div class="divisions" id="divisions">
-                <div class="division division-1">
-                    <h3>🥇 Division 1</h3>
-                    <div class="players-list" id="division1Players">
-                        <div class="empty-state">Aucun joueur</div>
+            <!-- CLASSEMENT GÉNÉRAL -->
+            <div class="tab-content general-content" id="general-ranking">
+                <div class="section general-ranking-section">
+                    <h2>🏆 Classement Général du Championnat</h2>
+                    
+                    <div class="general-stats" id="generalStats">
+                        <!-- Stats générales seront générées ici -->
                     </div>
-                    <div class="matches-container" id="division1Matches"></div>
-                </div>
-                
-                <div class="division division-2">
-                    <h3>🥈 Division 2</h3>
-                    <div class="players-list" id="division2Players">
-                        <div class="empty-state">Aucun joueur</div>
+                    
+                    <div class="control-buttons" style="margin-bottom: 30px;">
+                        <button class="btn btn-warning" onclick="updateGeneralRanking()">
+                            🔄 Mettre à jour Classement Général
+                        </button>
+                        <button class="btn btn-success" onclick="exportGeneralRanking()">
+                            📊 Exporter Classement
+                        </button>
                     </div>
-                    <div class="matches-container" id="division2Matches"></div>
-                </div>
-                
-                <div class="division division-3">
-                    <h3>🥉 Division 3</h3>
-                    <div class="players-list" id="division3Players">
-                        <div class="empty-state">Aucun joueur</div>
-                    </div>
-                    <div class="matches-container" id="division3Matches"></div>
-                </div>
-            </div>
-            
-            <div class="rankings-section" id="rankings" style="display: none;">
-                <div class="rankings-header">
-                    <div class="rankings-title">🏆 Classements</div>
-                    <div class="rankings-toggle">
-                        <button class="toggle-btn active" onclick="showRankings('points')">Par Points</button>
-                        <button class="toggle-btn" onclick="showRankings('winrate')">Par % Victoires</button>
+                    
+                    <div id="generalRankingContent">
+                        <div class="empty-state">
+                            Terminez au moins un match dans une journée pour voir le classement général
+                        </div>
                     </div>
                 </div>
-                <div id="rankingsContent"></div>
-            </div>
-            
-            <div class="stats" id="stats" style="display: none;">
-                <h3>📊 Statistiques du Tournoi</h3>
-                <div class="stats-grid" id="statsContent"></div>
             </div>
         </div>
     </div>
 
-    <!-- Modal pour import JSON -->
+    <!-- MODALS -->
     <div id="importModal" class="modal">
         <div class="modal-content">
-            <h3>Importer un Tournoi</h3>
+            <h3>Importer un Championnat</h3>
             <div style="margin-bottom: 20px;">
                 <div class="file-input-wrapper">
                     <input type="file" id="importFileInput" accept=".json">
@@ -961,7 +1127,7 @@
                 </div>
             </div>
             <p style="margin: 15px 0; color: #7f8c8d; font-size: 14px;">
-                ⚠️ L'import remplacera complètement le tournoi actuel
+                ⚠️ L'import remplacera complètement le championnat actuel
             </p>
             <div class="modal-buttons">
                 <button class="btn btn-danger" onclick="closeImportModal()">Annuler</button>
@@ -970,7 +1136,6 @@
         </div>
     </div>
 
-    <!-- Modal pour ajout en masse -->
     <div id="bulkModal" class="modal">
         <div class="modal-content">
             <h3>Ajouter plusieurs joueurs</h3>
@@ -986,7 +1151,6 @@
         </div>
     </div>
 
-    <!-- Modal pour vue joueur -->
     <div id="playerModal" class="player-modal">
         <div class="player-modal-content">
             <div class="player-modal-header">
@@ -1003,35 +1167,42 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
-        let players = {
-            1: [],
-            2: [],
-            3: []
-        };
-        
-        let matches = {
-            1: [],
-            2: [],
-            3: []
-        };
-
-        // Variables pour l'import
-        let importedTournamentData = null;
-
-        // ========== INITIALISATION ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('fileInput').addEventListener('change', handleFileImport);
-            document.getElementById('importFileInput').addEventListener('change', handleTournamentImport);
-            
-            document.getElementById('bulkModal').addEventListener('click', function(event) {
-                if (event.target === this) {
-                    closeBulkModal();
+        // STRUCTURE DE DONNÉES CHAMPIONNAT
+        let championship = {
+            currentDay: 1,
+            days: {
+                1: {
+                    players: { 1: [], 2: [], 3: [] },
+                    matches: { 1: [], 2: [], 3: [] }
                 }
+            }
+        };
+
+        let importedChampionshipData = null;
+
+        // INITIALISATION
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadFromLocalStorage();
+            initializeDivisionsDisplay();
+            updateTabsDisplay();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('fileInput').addEventListener('change', handleFileImport);
+            document.getElementById('importFileInput').addEventListener('change', handleChampionshipImport);
+            
+            ['bulkModal', 'importModal'].forEach(modalId => {
+                document.getElementById(modalId).addEventListener('click', function(event) {
+                    if (event.target === this) {
+                        this.style.display = 'none';
+                    }
+                });
             });
             
-            document.getElementById('importModal').addEventListener('click', function(event) {
+            document.getElementById('playerModal').addEventListener('click', function(event) {
                 if (event.target === this) {
-                    closeImportModal();
+                    closePlayerModal();
                 }
             });
             
@@ -1043,33 +1214,210 @@
                 }
             });
             
-            document.getElementById('playerModal').addEventListener('click', function(event) {
-                if (event.target === this) {
-                    closePlayerModal();
-                }
-            });
-            
             document.getElementById('playerName').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     addPlayer();
                 }
             });
-            
-            // Charger les données sauvegardées
-            loadFromLocalStorage();
-        });
+        }
 
-        // ========== SAUVEGARDE ET LOCALSTORAGE ==========
+        // GESTION DES ONGLETS ET JOURNÉES
+        function addNewDay() {
+            const existingDays = Object.keys(championship.days).map(Number);
+            const newDayNumber = Math.max(...existingDays) + 1;
+            
+            championship.days[newDayNumber] = {
+                players: { 1: [], 2: [], 3: [] },
+                matches: { 1: [], 2: [], 3: [] }
+            };
+            
+            createDayTab(newDayNumber);
+            createDayContent(newDayNumber);
+            switchTab(newDayNumber);
+            saveToLocalStorage();
+            
+            showNotification(`Journée ${newDayNumber} créée !`, 'success');
+        }
+
+        function createDayTab(dayNumber) {
+            const tabsContainer = document.getElementById('tabs');
+            const addButton = tabsContainer.querySelector('.add-day-btn');
+            
+            const newTab = document.createElement('button');
+            newTab.className = 'tab';
+            newTab.onclick = () => switchTab(dayNumber);
+            newTab.dataset.day = dayNumber;
+            newTab.innerHTML = `
+                Journée ${dayNumber}
+                <button class="remove-day" onclick="event.stopPropagation(); removeDay(${dayNumber})" title="Supprimer">×</button>
+            `;
+            
+            tabsContainer.insertBefore(newTab, addButton);
+        }
+
+        function createDayContent(dayNumber) {
+            const content = document.querySelector('.content');
+            const generalRanking = document.getElementById('general-ranking');
+            
+            const dayContent = document.createElement('div');
+            dayContent.className = 'tab-content day-content';
+            dayContent.id = `day-${dayNumber}`;
+            dayContent.innerHTML = generateDayContentHTML(dayNumber);
+            
+            content.insertBefore(dayContent, generalRanking);
+            initializeDivisionsDisplay(dayNumber);
+        }
+
+        function generateDayContentHTML(dayNumber) {
+            return `
+                <div class="section">
+                    <h2>👥 Gestion des Joueurs - Journée ${dayNumber}</h2>
+                    
+                    <div class="input-group">
+                        <input type="text" id="playerName-${dayNumber}" placeholder="Nom du joueur" style="flex: 1; min-width: 200px;">
+                        <select id="playerDivision-${dayNumber}">
+                            <option value="1">Division 1</option>
+                            <option value="2">Division 2</option>
+                            <option value="3">Division 3</option>
+                        </select>
+                        <button class="btn btn-success" onclick="addPlayerToDay(${dayNumber})">Ajouter Joueur</button>
+                    </div>
+                    
+                    <button class="btn" onclick="generateMatchesForDay(${dayNumber})" style="font-size: 18px; padding: 15px 25px; display: block; margin: 20px auto;">
+                        🎯 Générer les Matchs (Round-Robin)
+                    </button>
+                    
+                    <div class="control-buttons">
+                        <button class="btn btn-success" onclick="updateRankingsForDay(${dayNumber})">
+                            🏆 Classements
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="divisions" id="divisions-${dayNumber}">
+                    <!-- Les divisions seront générées dynamiquement -->
+                </div>
+                
+                <div class="rankings-section" id="rankings-${dayNumber}" style="display: none;">
+                    <div class="rankings-header">
+                        <div class="rankings-title">🏆 Classements Journée ${dayNumber}</div>
+                        <div class="rankings-toggle">
+                            <button class="toggle-btn active" onclick="showRankingsForDay(${dayNumber}, 'points')">Par Points</button>
+                            <button class="toggle-btn" onclick="showRankingsForDay(${dayNumber}, 'winrate')">Par % Victoires</button>
+                        </div>
+                    </div>
+                    <div id="rankingsContent-${dayNumber}"></div>
+                </div>
+                
+                <div class="stats" id="stats-${dayNumber}" style="display: none;">
+                    <h3>📊 Statistiques Journée ${dayNumber}</h3>
+                    <div class="stats-grid" id="statsContent-${dayNumber}"></div>
+                </div>
+            `;
+        }
+
+        function removeDay(dayNumber) {
+            if (Object.keys(championship.days).length <= 1) {
+                alert('Vous ne pouvez pas supprimer la dernière journée !');
+                return;
+            }
+            
+            if (confirm(`Supprimer définitivement la Journée ${dayNumber} ?\n\nTous les joueurs, matchs et scores seront perdus !`)) {
+                delete championship.days[dayNumber];
+                
+                // Supprimer l'onglet
+                document.querySelector(`[data-day="${dayNumber}"]`).remove();
+                
+                // Supprimer le contenu
+                const dayContent = document.getElementById(`day-${dayNumber}`);
+                if (dayContent) {
+                    dayContent.remove();
+                }
+                
+                // Passer à la première journée disponible
+                const remainingDays = Object.keys(championship.days).map(Number);
+                switchTab(Math.min(...remainingDays));
+                
+                saveToLocalStorage();
+                showNotification(`Journée ${dayNumber} supprimée`, 'warning');
+            }
+        }
+
+        function switchTab(dayNumber) {
+            championship.currentDay = dayNumber;
+            
+            // Masquer tous les contenus
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Désactiver tous les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activer l'onglet et contenu sélectionné
+            document.querySelector(`[data-day="${dayNumber}"]`).classList.add('active');
+            document.getElementById(`day-${dayNumber}`).classList.add('active');
+        }
+
+        function switchToGeneralRanking() {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelector('[data-tab="general"]').classList.add('active');
+            document.getElementById('general-ranking').classList.add('active');
+            
+            updateGeneralRanking();
+        }
+
+        function updateTabsDisplay() {
+            const tabsContainer = document.getElementById('tabs');
+            const existingTabs = tabsContainer.querySelectorAll('.tab:not(.general-ranking)');
+            
+            // Supprimer tous les onglets de journée existants
+            existingTabs.forEach(tab => {
+                if (!tab.classList.contains('add-day-btn')) {
+                    tab.remove();
+                }
+            });
+            
+            // Recréer les onglets pour chaque journée
+            const addButton = tabsContainer.querySelector('.add-day-btn');
+            const generalTab = tabsContainer.querySelector('.general-ranking');
+            
+            Object.keys(championship.days).sort((a, b) => Number(a) - Number(b)).forEach(dayNumber => {
+                const tab = document.createElement('button');
+                tab.className = 'tab';
+                if (Number(dayNumber) === championship.currentDay) {
+                    tab.classList.add('active');
+                }
+                tab.onclick = () => switchTab(Number(dayNumber));
+                tab.dataset.day = dayNumber;
+                tab.innerHTML = `
+                    Journée ${dayNumber}
+                    <button class="remove-day" onclick="event.stopPropagation(); removeDay(${dayNumber})" title="Supprimer">×</button>
+                `;
+                
+                tabsContainer.insertBefore(tab, addButton);
+            });
+        }
+
+        // SAUVEGARDE ET LOCALSTORAGE
         function saveToLocalStorage() {
             try {
-                const tournamentData = {
-                    version: "1.0",
+                const championshipData = {
+                    version: "2.0",
                     timestamp: new Date().toISOString(),
-                    players: players,
-                    matches: matches
+                    championship: championship
                 };
-                localStorage.setItem('tennisTableTournament', JSON.stringify(tournamentData));
-                console.log('✅ Données sauvegardées automatiquement');
+                localStorage.setItem('tennisTableChampionship', JSON.stringify(championshipData));
+                console.log('✅ Championnat sauvegardé automatiquement');
             } catch (error) {
                 console.error('❌ Erreur sauvegarde localStorage:', error);
                 showNotification('Erreur de sauvegarde', 'warning');
@@ -1078,22 +1426,53 @@
 
         function loadFromLocalStorage() {
             try {
-                const savedData = localStorage.getItem('tennisTableTournament');
+                const savedData = localStorage.getItem('tennisTableChampionship');
+                const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
+                
                 if (savedData) {
-                    const tournamentData = JSON.parse(savedData);
-                    players = tournamentData.players || { 1: [], 2: [], 3: [] };
-                    matches = tournamentData.matches || { 1: [], 2: [], 3: [] };
+                    const championshipData = JSON.parse(savedData);
+                    championship = championshipData.championship || championship;
                     
-                    updatePlayersDisplay();
-                    updateMatchesDisplay();
-                    updateStats();
+                    updateTabsDisplay();
+                    initializeAllDaysContent();
+                    switchTab(championship.currentDay);
                     
-                    console.log('✅ Données restaurées depuis localStorage');
-                    showNotification('Tournoi restauré automatiquement', 'success');
+                    console.log('✅ Championnat restauré depuis localStorage');
+                    showNotification('Championnat restauré automatiquement', 'success');
+                    
+                } else if (oldData) {
+                    // Migration depuis l'ancienne version
+                    const oldTournamentData = JSON.parse(oldData);
+                    championship.days[1] = {
+                        players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
+                        matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
+                    };
+                    
+                    localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
+                    saveToLocalStorage(); // Sauver dans le nouveau format
+                    
+                    updateTabsDisplay();
+                    initializeAllDaysContent();
+                    switchTab(1);
+                    
+                    showNotification('Données migrées vers le nouveau format !', 'info');
                 }
             } catch (error) {
                 console.error('❌ Erreur chargement localStorage:', error);
             }
+        }
+
+        function initializeAllDaysContent() {
+            Object.keys(championship.days).forEach(dayNumber => {
+                const dayNum = Number(dayNumber);
+                if (dayNum > 1) {
+                    createDayContent(dayNum);
+                }
+                initializeDivisionsDisplay(dayNum);
+                updatePlayersDisplay(dayNum);
+                updateMatchesDisplay(dayNum);
+                updateStats(dayNum);
+            });
         }
 
         function showNotification(message, type = 'info') {
@@ -1108,31 +1487,49 @@
             }, 3000);
         }
 
-        // ========== EXPORT / IMPORT JSON ==========
-        function exportTournament() {
-            const tournamentData = {
-                version: "1.0",
+        // EXPORT / IMPORT
+        function exportChampionship() {
+            const championshipData = {
+                version: "2.0",
                 exportDate: new Date().toISOString(),
-                tournamentName: `Tournoi_${new Date().toISOString().slice(0,10)}`,
-                players: players,
-                matches: matches,
-                stats: {
-                    totalPlayers: players[1].length + players[2].length + players[3].length,
-                    totalMatches: matches[1].length + matches[2].length + matches[3].length
-                }
+                championshipName: `Championnat_${new Date().toISOString().slice(0,10)}`,
+                championship: championship,
+                stats: calculateChampionshipStats()
             };
 
-            const dataStr = JSON.stringify(tournamentData, null, 2);
+            const dataStr = JSON.stringify(championshipData, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             
             const link = document.createElement('a');
             link.href = URL.createObjectURL(dataBlob);
-            link.download = `tournoi_tennis_table_${new Date().toISOString().slice(0,10)}.json`;
+            link.download = `championnat_tennis_table_${new Date().toISOString().slice(0,10)}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             
-            showNotification('Tournoi exporté avec succès !', 'success');
+            showNotification('Championnat exporté avec succès !', 'success');
+        }
+
+        function calculateChampionshipStats() {
+            let totalPlayers = new Set();
+            let totalMatches = 0;
+            let totalDays = Object.keys(championship.days).length;
+            
+            Object.values(championship.days).forEach(day => {
+                Object.values(day.players).forEach(divPlayers => {
+                    divPlayers.forEach(player => totalPlayers.add(player));
+                });
+                Object.values(day.matches).forEach(divMatches => {
+                    totalMatches += divMatches.length;
+                });
+            });
+            
+            return {
+                totalPlayers: totalPlayers.size,
+                totalMatches,
+                totalDays,
+                uniquePlayersList: Array.from(totalPlayers)
+            };
         }
 
         function showImportModal() {
@@ -1143,70 +1540,121 @@
         function closeImportModal() {
             document.getElementById('importModal').style.display = 'none';
             document.getElementById('importFileInput').value = '';
-            importedTournamentData = null;
+            importedChampionshipData = null;
         }
 
-        function handleTournamentImport(event) {
+        function handleChampionshipImport(event) {
             const file = event.target.files[0];
             if (!file) return;
             
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const tournamentData = JSON.parse(e.target.result);
+                    const data = JSON.parse(e.target.result);
                     
-                    if (!tournamentData.players || !tournamentData.matches) {
-                        throw new Error('Format de fichier invalide - manque players ou matches');
+                    // Supporter les deux formats (ancien et nouveau)
+                    if (data.championship) {
+                        importedChampionshipData = data;
+                    } else if (data.players && data.matches) {
+                        // Ancien format - convertir
+                        importedChampionshipData = {
+                            version: "2.0",
+                            exportDate: data.timestamp || new Date().toISOString(),
+                            championship: {
+                                currentDay: 1,
+                                days: {
+                                    1: {
+                                        players: data.players,
+                                        matches: data.matches
+                                    }
+                                }
+                            }
+                        };
+                    } else {
+                        throw new Error('Format de fichier non reconnu');
                     }
                     
-                    const importDate = new Date(tournamentData.exportDate || tournamentData.timestamp || Date.now()).toLocaleString('fr-FR');
-                    const totalPlayers = (tournamentData.players[1]?.length || 0) + (tournamentData.players[2]?.length || 0) + (tournamentData.players[3]?.length || 0);
-                    const totalMatches = (tournamentData.matches[1]?.length || 0) + (tournamentData.matches[2]?.length || 0) + (tournamentData.matches[3]?.length || 0);
+                    const importDate = new Date(importedChampionshipData.exportDate).toLocaleString('fr-FR');
+                    const stats = importedChampionshipData.stats || calculateStatsFromData(importedChampionshipData.championship);
                     
-                    const confirmMsg = `Confirmer l'import du tournoi ?\n\n` +
+                    const confirmMsg = `Confirmer l'import du championnat ?\n\n` +
                                      `📅 Exporté le : ${importDate}\n` +
-                                     `👥 Joueurs : ${totalPlayers}\n` +
-                                     `🎯 Matchs : ${totalMatches}\n\n` +
-                                     `⚠️ Cette action remplacera complètement le tournoi actuel`;
+                                     `🏆 Journées : ${stats.totalDays || Object.keys(importedChampionshipData.championship.days).length}\n` +
+                                     `👥 Joueurs : ${stats.totalPlayers || 'Non calculé'}\n` +
+                                     `🎯 Matchs : ${stats.totalMatches || 'Non calculé'}\n\n` +
+                                     `⚠️ Cette action remplacera complètement le championnat actuel`;
                     
                     if (confirm(confirmMsg)) {
-                        importedTournamentData = tournamentData;
                         processImport();
                     } else {
                         closeImportModal();
                     }
                     
                 } catch (error) {
-                    alert('Erreur lors de la lecture du fichier :\n' + error.message + '\n\nVérifiez que le fichier est un export JSON valide.');
+                    alert('Erreur lors de la lecture du fichier :\n' + error.message + '\n\nVérifiez que le fichier est un export valide.');
                 }
             };
             
             reader.readAsText(file);
         }
 
+        function calculateStatsFromData(championshipData) {
+            let totalPlayers = new Set();
+            let totalMatches = 0;
+            
+            Object.values(championshipData.days).forEach(day => {
+                Object.values(day.players).forEach(divPlayers => {
+                    divPlayers.forEach(player => totalPlayers.add(player));
+                });
+                Object.values(day.matches).forEach(divMatches => {
+                    totalMatches += divMatches.length;
+                });
+            });
+            
+            return {
+                totalPlayers: totalPlayers.size,
+                totalMatches,
+                totalDays: Object.keys(championshipData.days).length
+            };
+        }
+
         function processImport() {
-            if (!importedTournamentData) {
+            if (!importedChampionshipData) {
                 alert('Aucun fichier sélectionné');
                 return;
             }
             
             try {
-                players = importedTournamentData.players || { 1: [], 2: [], 3: [] };
-                matches = importedTournamentData.matches || { 1: [], 2: [], 3: [] };
+                championship = importedChampionshipData.championship;
                 
-                // Valider la structure des données
-                for (let division = 1; division <= 3; division++) {
-                    if (!Array.isArray(players[division])) players[division] = [];
-                    if (!Array.isArray(matches[division])) matches[division] = [];
+                // Valider la structure
+                if (!championship.days) {
+                    championship.days = {};
+                }
+                if (!championship.currentDay) {
+                    championship.currentDay = 1;
                 }
                 
-                updatePlayersDisplay();
-                updateMatchesDisplay();
-                updateStats();
+                // Assurer la structure de chaque journée
+                Object.keys(championship.days).forEach(dayNumber => {
+                    const day = championship.days[dayNumber];
+                    if (!day.players) day.players = { 1: [], 2: [], 3: [] };
+                    if (!day.matches) day.matches = { 1: [], 2: [], 3: [] };
+                    
+                    for (let division = 1; division <= 3; division++) {
+                        if (!Array.isArray(day.players[division])) day.players[division] = [];
+                        if (!Array.isArray(day.matches[division])) day.matches[division] = [];
+                    }
+                });
+                
+                // Reconstruire l'interface
+                updateTabsDisplay();
+                initializeAllDaysContent();
+                switchTab(championship.currentDay);
                 saveToLocalStorage();
                 
                 closeImportModal();
-                showNotification('Tournoi importé avec succès !', 'success');
+                showNotification('Championnat importé avec succès !', 'success');
                 
             } catch (error) {
                 alert('Erreur lors de l\'import : ' + error.message);
@@ -1214,35 +1662,147 @@
         }
 
         function clearAllData() {
+            const stats = calculateChampionshipStats();
             const confirmMsg = `⚠️ ATTENTION ⚠️\n\n` +
                               `Cette action va SUPPRIMER DÉFINITIVEMENT :\n` +
-                              `• Tous les joueurs\n` +
-                              `• Tous les matchs\n` +
-                              `• Tous les scores\n` +
+                              `• ${stats.totalDays} journées\n` +
+                              `• ${stats.totalPlayers} joueurs uniques\n` +
+                              `• ${stats.totalMatches} matchs\n` +
+                              `• Tous les scores et classements\n` +
                               `• La sauvegarde automatique\n\n` +
                               `Cette action est IRRÉVERSIBLE !\n\n` +
                               `Êtes-vous vraiment sûr ?`;
             
             if (confirm(confirmMsg)) {
-                const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUTES les données du tournoi ?');
+                const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUT le championnat ?');
                 
                 if (doubleConfirm) {
-                    players = { 1: [], 2: [], 3: [] };
-                    matches = { 1: [], 2: [], 3: [] };
+                    championship = {
+                        currentDay: 1,
+                        days: {
+                            1: {
+                                players: { 1: [], 2: [], 3: [] },
+                                matches: { 1: [], 2: [], 3: [] }
+                            }
+                        }
+                    };
                     
-                    localStorage.removeItem('tennisTableTournament');
+                    localStorage.removeItem('tennisTableChampionship');
                     
-                    updatePlayersDisplay();
-                    updateMatchesDisplay();
-                    updateStats();
-                    document.getElementById('rankings').style.display = 'none';
+                    // Reconstruire l'interface
+                    updateTabsDisplay();
+                    initializeAllDaysContent();
+                    switchTab(1);
                     
-                    showNotification('Toutes les données ont été supprimées', 'warning');
+                    showNotification('Championnat réinitialisé', 'warning');
                 }
             }
         }
 
-        // ========== GESTION DES JOUEURS ==========
+        // GESTION DES JOUEURS
+        function getCurrentDayData() {
+            return championship.days[championship.currentDay];
+        }
+
+        function addPlayer() {
+            addPlayerToDay(championship.currentDay);
+        }
+
+        function addPlayerToDay(dayNumber) {
+            const nameInput = document.getElementById(`playerName${dayNumber > 1 ? '-' + dayNumber : ''}`);
+            const divisionSelect = document.getElementById(`playerDivision${dayNumber > 1 ? '-' + dayNumber : ''}`);
+            
+            const name = nameInput.value.trim();
+            const division = parseInt(divisionSelect.value);
+            
+            if (!name) {
+                alert('Veuillez entrer un nom de joueur');
+                return;
+            }
+            
+            if (!championship.days[dayNumber]) {
+                championship.days[dayNumber] = {
+                    players: { 1: [], 2: [], 3: [] },
+                    matches: { 1: [], 2: [], 3: [] }
+                };
+            }
+            
+            if (championship.days[dayNumber].players[division].includes(name)) {
+                alert('Ce joueur existe déjà dans cette division pour cette journée');
+                return;
+            }
+            
+            championship.days[dayNumber].players[division].push(name);
+            nameInput.value = '';
+            updatePlayersDisplay(dayNumber);
+            saveToLocalStorage();
+        }
+
+        function removePlayer(dayNumber, division, playerName) {
+            championship.days[dayNumber].players[division] = championship.days[dayNumber].players[division].filter(p => p !== playerName);
+            championship.days[dayNumber].matches[division] = championship.days[dayNumber].matches[division].filter(match => 
+                match.player1 !== playerName && match.player2 !== playerName
+            );
+            updatePlayersDisplay(dayNumber);
+            updateMatchesDisplay(dayNumber);
+            updateStats(dayNumber);
+            saveToLocalStorage();
+        }
+
+        function initializeDivisionsDisplay(dayNumber = 1) {
+            const divisionsContainer = document.getElementById(`divisions-${dayNumber}`);
+            if (!divisionsContainer) return;
+            
+            divisionsContainer.innerHTML = `
+                <div class="division division-1">
+                    <h3>🥇 Division 1</h3>
+                    <div class="players-list" id="division${dayNumber}-1-players">
+                        <div class="empty-state">Aucun joueur</div>
+                    </div>
+                    <div class="matches-container" id="division${dayNumber}-1-matches"></div>
+                </div>
+                
+                <div class="division division-2">
+                    <h3>🥈 Division 2</h3>
+                    <div class="players-list" id="division${dayNumber}-2-players">
+                        <div class="empty-state">Aucun joueur</div>
+                    </div>
+                    <div class="matches-container" id="division${dayNumber}-2-matches"></div>
+                </div>
+                
+                <div class="division division-3">
+                    <h3>🥉 Division 3</h3>
+                    <div class="players-list" id="division${dayNumber}-3-players">
+                        <div class="empty-state">Aucun joueur</div>
+                    </div>
+                    <div class="matches-container" id="division${dayNumber}-3-matches"></div>
+                </div>
+            `;
+        }
+
+        function updatePlayersDisplay(dayNumber) {
+            if (!championship.days[dayNumber]) return;
+            
+            for (let division = 1; division <= 3; division++) {
+                const container = document.getElementById(`division${dayNumber}-${division}-players`);
+                if (!container) continue;
+                
+                const players = championship.days[dayNumber].players[division];
+                
+                if (players.length === 0) {
+                    container.innerHTML = '<div class="empty-state">Aucun joueur</div>';
+                } else {
+                    container.innerHTML = players.map(player => 
+                        `<div class="player-tag" onclick="showPlayerDetails(${dayNumber}, ${division}, '${player}')">
+                            ${player}
+                            <button class="remove-player" onclick="event.stopPropagation(); removePlayer(${dayNumber}, ${division}, '${player}')" title="Supprimer">×</button>
+                        </div>`
+                    ).join('');
+                }
+            }
+        }
+
+        // Import et bulk (adapté pour journées multiples)
         function handleFileImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1261,7 +1821,7 @@
                         data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
                     }
                     
-                    importPlayersFromData(data);
+                    importPlayersFromData(data, championship.currentDay);
                     
                 } catch (error) {
                     alert('Erreur lors de la lecture du fichier : ' + error.message);
@@ -1282,7 +1842,7 @@
             }).filter(row => row[0] && row[0].trim());
         }
 
-        function importPlayersFromData(data) {
+        function importPlayersFromData(data, dayNumber) {
             let imported = 0;
             let errors = [];
             
@@ -1292,8 +1852,8 @@
                     const division = parseInt(row[1]);
                     
                     if (name && [1, 2, 3].includes(division)) {
-                        if (!players[division].includes(name)) {
-                            players[division].push(name);
+                        if (!championship.days[dayNumber].players[division].includes(name)) {
+                            championship.days[dayNumber].players[division].push(name);
                             imported++;
                         }
                     } else {
@@ -1302,10 +1862,10 @@
                 }
             });
             
-            updatePlayersDisplay();
+            updatePlayersDisplay(dayNumber);
             saveToLocalStorage();
             
-            let message = `✅ ${imported} joueurs importés avec succès !`;
+            let message = `✅ ${imported} joueurs importés avec succès dans la Journée ${dayNumber} !`;
             if (errors.length > 0 && errors.length < 5) {
                 message += '\n\n⚠️ Erreurs:\n' + errors.slice(0, 5).join('\n');
             } else if (errors.length >= 5) {
@@ -1331,6 +1891,7 @@
         function addBulkPlayers() {
             const text = document.getElementById('bulkText').value.trim();
             const division = parseInt(document.getElementById('bulkDivision').value);
+            const dayNumber = championship.currentDay;
             
             if (!text) {
                 alert('Veuillez entrer au moins un nom de joueur');
@@ -1345,18 +1906,18 @@
             let duplicates = [];
             
             names.forEach(name => {
-                if (!players[division].includes(name)) {
-                    players[division].push(name);
+                if (!championship.days[dayNumber].players[division].includes(name)) {
+                    championship.days[dayNumber].players[division].push(name);
                     added++;
                 } else {
                     duplicates.push(name);
                 }
             });
             
-            updatePlayersDisplay();
+            updatePlayersDisplay(dayNumber);
             saveToLocalStorage();
             
-            let message = `✅ ${added} joueurs ajoutés à la Division ${division} !`;
+            let message = `✅ ${added} joueurs ajoutés à la Division ${division} - Journée ${dayNumber} !`;
             if (duplicates.length > 0) {
                 message += `\n\n⚠️ Joueurs déjà présents (ignorés): ${duplicates.join(', ')}`;
             }
@@ -1365,70 +1926,26 @@
             closeBulkModal();
         }
 
-        function addPlayer() {
-            const nameInput = document.getElementById('playerName');
-            const divisionSelect = document.getElementById('playerDivision');
-            
-            const name = nameInput.value.trim();
-            const division = parseInt(divisionSelect.value);
-            
-            if (!name) {
-                alert('Veuillez entrer un nom de joueur');
-                return;
-            }
-            
-            if (players[division].includes(name)) {
-                alert('Ce joueur existe déjà dans cette division');
-                return;
-            }
-            
-            players[division].push(name);
-            nameInput.value = '';
-            updatePlayersDisplay();
-            saveToLocalStorage();
-        }
-
-        function removePlayer(division, playerName) {
-            players[division] = players[division].filter(p => p !== playerName);
-            matches[division] = matches[division].filter(match => 
-                match.player1 !== playerName && match.player2 !== playerName
-            );
-            updatePlayersDisplay();
-            updateMatchesDisplay();
-            updateStats();
-            saveToLocalStorage();
-        }
-
-        function updatePlayersDisplay() {
-            for (let division = 1; division <= 3; division++) {
-                const container = document.getElementById(`division${division}Players`);
-                
-                if (players[division].length === 0) {
-                    container.innerHTML = '<div class="empty-state">Aucun joueur</div>';
-                } else {
-                    container.innerHTML = players[division].map(player => 
-                        `<div class="player-tag" onclick="showPlayerDetails(${division}, '${player}')">
-                            ${player}
-                            <button class="remove-player" onclick="event.stopPropagation(); removePlayer(${division}, '${player}')" title="Supprimer">×</button>
-                        </div>`
-                    ).join('');
-                }
-            }
-        }
-
-        // ========== GÉNÉRATION DES MATCHS ROUND-ROBIN ==========
+        // GÉNÉRATION DES MATCHS
         function generateMatches() {
+            generateMatchesForDay(championship.currentDay);
+        }
+
+        function generateMatchesForDay(dayNumber) {
+            const dayData = championship.days[dayNumber];
+            if (!dayData) return;
+            
             for (let division = 1; division <= 3; division++) {
-                const divisionPlayers = [...players[division]];
+                const divisionPlayers = [...dayData.players[division]];
                 
                 if (divisionPlayers.length < 2) {
                     if (divisionPlayers.length === 1) {
-                        alert(`Division ${division}: Il faut au moins 2 joueurs pour générer des matchs`);
+                        alert(`Journée ${dayNumber} - Division ${division}: Il faut au moins 2 joueurs pour générer des matchs`);
                     }
                     continue;
                 }
                 
-                matches[division] = [];
+                dayData.matches[division] = [];
                 
                 const totalRounds = 4;
                 const playersWithBye = [...divisionPlayers];
@@ -1479,23 +1996,23 @@
                                 winner: null
                             };
                             
-                            matches[division].push(matchData);
+                            dayData.matches[division].push(matchData);
                         }
                     }
                 }
                 
-                matches[division] = shuffleArray([...matches[division]]);
+                dayData.matches[division] = shuffleArray([...dayData.matches[division]]);
             }
             
-            updateMatchesDisplay();
-            updateStats();
+            updateMatchesDisplay(dayNumber);
+            updateStats(dayNumber);
             saveToLocalStorage();
             
-            let summary = "Matchs générés avec succès !\n\n";
+            let summary = `Matchs générés avec succès pour la Journée ${dayNumber} !\n\n`;
             for (let division = 1; division <= 3; division++) {
-                if (players[division].length > 0) {
-                    const totalMatches = matches[division].length;
-                    const playersCount = players[division].length;
+                if (dayData.players[division].length > 0) {
+                    const totalMatches = dayData.matches[division].length;
+                    const playersCount = dayData.players[division].length;
                     const isOdd = playersCount % 2 !== 0;
                     
                     summary += `Division ${division}: ${playersCount} joueurs, ${totalMatches} matchs`;
@@ -1517,18 +2034,22 @@
             return shuffled;
         }
 
-        // ========== AFFICHAGE ET GESTION DES MATCHS ==========
-        function updateMatchesDisplay() {
+        // AFFICHAGE DES MATCHS
+        function updateMatchesDisplay(dayNumber) {
+            const dayData = championship.days[dayNumber];
+            if (!dayData) return;
+            
             for (let division = 1; division <= 3; division++) {
-                const container = document.getElementById(`division${division}Matches`);
+                const container = document.getElementById(`division${dayNumber}-${division}-matches`);
+                if (!container) continue;
                 
-                if (matches[division].length === 0) {
+                if (dayData.matches[division].length === 0) {
                     container.innerHTML = '';
                     continue;
                 }
                 
                 const matchsByTour = {};
-                matches[division].forEach(match => {
+                dayData.matches[division].forEach(match => {
                     if (!matchsByTour[match.tour]) {
                         matchsByTour[match.tour] = [];
                     }
@@ -1545,21 +2066,21 @@
                         
                         html += `
                             <div class="tour-section">
-                                <div class="tour-header" onclick="toggleTour(${division}, ${tour})">
+                                <div class="tour-header" onclick="toggleTour(${dayNumber}, ${division}, ${tour})">
                                     <div class="tour-title">🎯 Tour ${tour}</div>
-                                    <div class="tour-progress" id="progress-d${division}-t${tour}">${completedMatches}/${totalMatches} terminés</div>
+                                    <div class="tour-progress" id="progress-d${dayNumber}-div${division}-t${tour}">${completedMatches}/${totalMatches} terminés</div>
                                 </div>
-                                <div class="tour-matches" id="tour${division}-${tour}">
+                                <div class="tour-matches" id="tour${dayNumber}-${division}-${tour}">
                         `;
                         
                         tourMatches.forEach((match, matchIndex) => {
-                            const globalIndex = matches[division].indexOf(match);
+                            const globalIndex = dayData.matches[division].indexOf(match);
                             const matchStatus = match.completed ? 'completed' : 'pending';
                             const statusClass = match.completed ? 'status-completed' : 'status-pending';
                             const statusText = match.completed ? 'Terminé' : 'En cours';
                             
                             html += `
-                                <div class="match ${matchStatus}" data-match-id="d${division}-m${globalIndex}">
+                                <div class="match ${matchStatus}" data-match-id="d${dayNumber}-div${division}-m${globalIndex}">
                                     <div class="match-header">
                                         <div class="player-names">${match.player1} VS ${match.player2}</div>
                                         <div class="match-status ${statusClass}">${statusText}</div>
@@ -1602,15 +2123,15 @@
                                                    placeholder="" min="0" max="30"
                                                    value="${match.sets[setIndex].player1Score || ''}" 
                                                    ${setDisabled}
-                                                   onchange="updateSetScore(${division}, ${globalIndex}, ${setIndex}, 'player1Score', this.value)"
-                                                   onkeydown="handleEnterKey(event, ${division}, ${globalIndex})">
+                                                   onchange="updateSetScore(${dayNumber}, ${division}, ${globalIndex}, ${setIndex}, 'player1Score', this.value)"
+                                                   onkeydown="handleEnterKey(event, ${dayNumber}, ${division}, ${globalIndex})">
                                             <span class="score-separator">-</span>
                                             <input type="number" class="score-input" 
                                                    placeholder="" min="0" max="30"
                                                    value="${match.sets[setIndex].player2Score || ''}"
                                                    ${setDisabled}
-                                                   onchange="updateSetScore(${division}, ${globalIndex}, ${setIndex}, 'player2Score', this.value)"
-                                                   onkeydown="handleEnterKey(event, ${division}, ${globalIndex})">
+                                                   onchange="updateSetScore(${dayNumber}, ${division}, ${globalIndex}, ${setIndex}, 'player2Score', this.value)"
+                                                   onkeydown="handleEnterKey(event, ${dayNumber}, ${division}, ${globalIndex})">
                                         </div>
                                     </div>
                                 `;
@@ -1662,7 +2183,7 @@
                 container.innerHTML = html;
                 
                 setTimeout(() => {
-                    const firstTour = document.getElementById(`tour${division}-1`);
+                    const firstTour = document.getElementById(`tour${dayNumber}-${division}-1`);
                     if (firstTour) {
                         firstTour.classList.add('active');
                     }
@@ -1670,32 +2191,32 @@
             }
         }
 
-        function toggleTour(division, tour) {
-            const tourElement = document.getElementById(`tour${division}-${tour}`);
+        function toggleTour(dayNumber, division, tour) {
+            const tourElement = document.getElementById(`tour${dayNumber}-${division}-${tour}`);
             if (tourElement) {
                 tourElement.classList.toggle('active');
             }
         }
 
-        function updateSetScore(division, matchIndex, setIndex, scoreField, value) {
-            matches[division][matchIndex].sets[setIndex][scoreField] = value;
+        function updateSetScore(dayNumber, division, matchIndex, setIndex, scoreField, value) {
+            championship.days[dayNumber].matches[division][matchIndex].sets[setIndex][scoreField] = value;
         }
 
-        function handleEnterKey(event, division, matchIndex) {
+        function handleEnterKey(event, dayNumber, division, matchIndex) {
             if (event.key === 'Enter') {
                 const currentValue = event.target.value;
                 event.target.dispatchEvent(new Event('change'));
                 
-                const wasCompleted = matches[division][matchIndex].completed;
+                const wasCompleted = championship.days[dayNumber].matches[division][matchIndex].completed;
                 
-                checkMatchCompletion(division, matchIndex);
+                checkMatchCompletion(dayNumber, division, matchIndex);
                 
-                const isNowCompleted = matches[division][matchIndex].completed;
+                const isNowCompleted = championship.days[dayNumber].matches[division][matchIndex].completed;
                 
-                updateSingleMatchDisplay(division, matchIndex);
+                updateSingleMatchDisplay(dayNumber, division, matchIndex);
                 saveToLocalStorage();
                 
-                const matchElement = document.querySelector(`[data-match-id="d${division}-m${matchIndex}"]`);
+                const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
                 if (matchElement) {
                     matchElement.style.transform = 'scale(1.02)';
                     matchElement.style.boxShadow = '0 5px 20px rgba(27, 164, 60, 0.4)';
@@ -1708,7 +2229,7 @@
                 }
                 
                 if (!wasCompleted && isNowCompleted) {
-                    const match = matches[division][matchIndex];
+                    const match = championship.days[dayNumber].matches[division][matchIndex];
                     setTimeout(() => {
                         if (matchElement) {
                             matchElement.style.background = '#d5f4e6';
@@ -1719,9 +2240,9 @@
             }
         }
 
-        function updateSingleMatchDisplay(division, matchIndex) {
-            const match = matches[division][matchIndex];
-            const matchElement = document.querySelector(`[data-match-id="d${division}-m${matchIndex}"]`);
+        function updateSingleMatchDisplay(dayNumber, division, matchIndex) {
+            const match = championship.days[dayNumber].matches[division][matchIndex];
+            const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
             
             if (!matchElement) return;
             
@@ -1775,14 +2296,14 @@
                 });
             }
             
-            updateTourProgress(division, match.tour);
+            updateTourProgress(dayNumber, division, match.tour);
         }
 
-        function updateTourProgress(division, tour) {
-            const progressElement = document.getElementById(`progress-d${division}-t${tour}`);
+        function updateTourProgress(dayNumber, division, tour) {
+            const progressElement = document.getElementById(`progress-d${dayNumber}-div${division}-t${tour}`);
             if (!progressElement) return;
             
-            const tourMatches = matches[division].filter(m => m.tour === tour);
+            const tourMatches = championship.days[dayNumber].matches[division].filter(m => m.tour === tour);
             const completedMatches = tourMatches.filter(m => m.completed).length;
             const totalMatches = tourMatches.length;
             
@@ -1794,8 +2315,8 @@
             }, 500);
         }
 
-        function checkMatchCompletion(division, matchIndex) {
-            const match = matches[division][matchIndex];
+        function checkMatchCompletion(dayNumber, division, matchIndex) {
+            const match = championship.days[dayNumber].matches[division][matchIndex];
             let player1Sets = 0;
             let player2Sets = 0;
             
@@ -1824,24 +2345,33 @@
             }
         }
 
-        // ========== STATISTIQUES ET CLASSEMENTS ==========
-        function updateStats() {
+        // STATISTIQUES ET CLASSEMENTS
+        function updateRankings() {
+            updateRankingsForDay(championship.currentDay);
+        }
+
+        function updateStats(dayNumber) {
+            const dayData = championship.days[dayNumber];
+            if (!dayData) return;
+            
             let totalPlayers = 0;
             let totalMatches = 0;
             let completedMatches = 0;
             
             for (let division = 1; division <= 3; division++) {
-                totalPlayers += players[division].length;
-                totalMatches += matches[division].length;
+                totalPlayers += dayData.players[division].length;
+                totalMatches += dayData.matches[division].length;
                 
-                matches[division].forEach((match, index) => {
-                    checkMatchCompletion(division, index);
+                dayData.matches[division].forEach((match, index) => {
+                    checkMatchCompletion(dayNumber, division, index);
                     if (match.completed) completedMatches++;
                 });
             }
             
-            const statsDiv = document.getElementById('stats');
-            const statsContent = document.getElementById('statsContent');
+            const statsDiv = document.getElementById(`stats-${dayNumber}`);
+            const statsContent = document.getElementById(`statsContent-${dayNumber}`);
+            
+            if (!statsDiv || !statsContent) return;
             
             if (totalMatches > 0) {
                 statsDiv.style.display = 'block';
@@ -1853,7 +2383,7 @@
                     let tourCompleted = 0;
                     
                     for (let division = 1; division <= 3; division++) {
-                        const tourMatches = matches[division].filter(m => m.tour === tour);
+                        const tourMatches = dayData.matches[division].filter(m => m.tour === tour);
                         tourTotal += tourMatches.length;
                         tourCompleted += tourMatches.filter(m => m.completed).length;
                     }
@@ -1884,7 +2414,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-number">${completionRate}%</div>
-                        <div>Progression globale</div>
+                        <div>Progression</div>
                     </div>
                     ${tourStats}
                 `;
@@ -1893,8 +2423,11 @@
             }
         }
 
-        function calculatePlayerStats(division, playerName) {
-            const playerMatches = matches[division].filter(match => 
+        function calculatePlayerStats(dayNumber, division, playerName) {
+            const dayData = championship.days[dayNumber];
+            if (!dayData) return null;
+            
+            const playerMatches = dayData.matches[division].filter(match => 
                 match.player1 === playerName || match.player2 === playerName
             );
             
@@ -1907,7 +2440,7 @@
             let matchesPlayed = 0;
             
             playerMatches.forEach(match => {
-                checkMatchCompletion(division, matches[division].indexOf(match));
+                checkMatchCompletion(dayNumber, division, dayData.matches[division].indexOf(match));
                 
                 if (match.completed) {
                     matchesPlayed++;
@@ -1957,10 +2490,11 @@
             };
         }
 
-        function showPlayerDetails(division, playerName) {
-            const stats = calculatePlayerStats(division, playerName);
+        function showPlayerDetails(dayNumber, division, playerName) {
+            const stats = calculatePlayerStats(dayNumber, division, playerName);
+            if (!stats) return;
             
-            document.getElementById('playerNameTitle').textContent = `${playerName} - Division ${division}`;
+            document.getElementById('playerNameTitle').textContent = `${playerName} - Division ${division} - Journée ${dayNumber}`;
             
             document.getElementById('playerOverview').innerHTML = `
                 <div class="overview-card">
@@ -1985,7 +2519,7 @@
                 </div>
                 <div class="overview-card">
                     <div class="overview-number">${stats.totalPoints}</div>
-                    <div class="overview-label">Points tournoi</div>
+                    <div class="overview-label">Points journée</div>
                 </div>
             `;
             
@@ -2038,18 +2572,25 @@
         }
 
         function showRankings(type) {
-            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            updateRankings(type);
+            showRankingsForDay(championship.currentDay, type);
         }
 
-        function updateRankings(sortBy = 'points') {
+        function showRankingsForDay(dayNumber, type) {
+            document.querySelectorAll(`#rankings-${dayNumber} .toggle-btn`).forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateRankingsForDay(dayNumber, type);
+        }
+
+        function updateRankingsForDay(dayNumber, sortBy = 'points') {
+            const dayData = championship.days[dayNumber];
+            if (!dayData) return;
+            
             let rankingsHtml = '';
             let hasAnyMatches = false;
             
             for (let division = 1; division <= 3; division++) {
-                if (matches[division].some(match => {
-                    checkMatchCompletion(division, matches[division].indexOf(match));
+                if (dayData.matches[division].some(match => {
+                    checkMatchCompletion(dayNumber, division, dayData.matches[division].indexOf(match));
                     return match.completed;
                 })) {
                     hasAnyMatches = true;
@@ -2058,16 +2599,16 @@
             }
             
             if (!hasAnyMatches) {
-                alert('Aucun match terminé pour établir un classement !');
+                alert(`Aucun match terminé dans la Journée ${dayNumber} pour établir un classement !`);
                 return;
             }
             
             for (let division = 1; division <= 3; division++) {
-                if (players[division].length === 0) continue;
+                if (dayData.players[division].length === 0) continue;
                 
-                const playerStats = players[division].map(player => ({
+                const playerStats = dayData.players[division].map(player => ({
                     name: player,
-                    ...calculatePlayerStats(division, player)
+                    ...calculatePlayerStats(dayNumber, division, player)
                 }));
                 
                 if (sortBy === 'points') {
@@ -2108,7 +2649,7 @@
                     const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
                     
                     rankingsHtml += `
-                        <tr style="cursor: pointer;" onclick="showPlayerDetails(${division}, '${player.name}')">
+                        <tr style="cursor: pointer;" onclick="showPlayerDetails(${dayNumber}, ${division}, '${player.name}')">
                             <td class="rank-position ${rankClass}">${index + 1}</td>
                             <td style="font-weight: 600;">${player.name}</td>
                             <td class="stat-value">${player.totalPoints}</td>
@@ -2127,9 +2668,318 @@
                 `;
             }
             
-            document.getElementById('rankingsContent').innerHTML = rankingsHtml;
-            document.getElementById('rankings').style.display = 'block';
-            document.getElementById('rankings').scrollIntoView({ behavior: 'smooth' });
+            const rankingsContentEl = document.getElementById(`rankingsContent-${dayNumber}`);
+            const rankingsEl = document.getElementById(`rankings-${dayNumber}`);
+            
+            if (rankingsContentEl && rankingsEl) {
+                rankingsContentEl.innerHTML = rankingsHtml;
+                rankingsEl.style.display = 'block';
+                rankingsEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // CLASSEMENT GÉNÉRAL
+        function updateGeneralRanking() {
+            const generalStats = calculateGeneralStats();
+            
+            // Mettre à jour les statistiques générales
+            document.getElementById('generalStats').innerHTML = `
+                <div class="general-stat-card">
+                    <div class="general-stat-number">${generalStats.totalDays}</div>
+                    <div class="general-stat-label">Journées</div>
+                </div>
+                <div class="general-stat-card">
+                    <div class="general-stat-number">${generalStats.totalPlayers}</div>
+                    <div class="general-stat-label">Joueurs uniques</div>
+                </div>
+                <div class="general-stat-card">
+                    <div class="general-stat-number">${generalStats.totalMatches}</div>
+                    <div class="general-stat-label">Matchs joués</div>
+                </div>
+                <div class="general-stat-card">
+                    <div class="general-stat-number">${generalStats.completedMatches}</div>
+                    <div class="general-stat-label">Matchs terminés</div>
+                </div>
+            `;
+            
+            // Calculer le classement général par division
+            const generalRanking = calculateGeneralRanking();
+            
+            if (!generalRanking.hasData) {
+                document.getElementById('generalRankingContent').innerHTML = `
+                    <div class="empty-state">
+                        Terminez au moins un match dans une journée pour voir le classement général
+                    </div>
+                `;
+                return;
+            }
+            
+            let rankingHtml = '';
+            
+            for (let division = 1; division <= 3; division++) {
+                if (generalRanking.divisions[division].length === 0) continue;
+                
+                rankingHtml += `
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="color: #e67e22; margin-bottom: 20px; font-size: 1.4rem;">
+                            ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division} - Classement Général
+                        </h3>
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>Rang</th>
+                                    <th>Joueur</th>
+                                    <th>Points Total</th>
+                                    <th>Journées</th>
+                                    <th>V/D Global</th>
+                                    <th>% Vict. Moy.</th>
+                                    <th>Sets Global</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                generalRanking.divisions[division].forEach((player, index) => {
+                    const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
+                    
+                    rankingHtml += `
+                        <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
+                            <td class="rank-position ${rankClass}">${index + 1}</td>
+                            <td style="font-weight: 600;">${player.name}</td>
+                            <td class="stat-value">${player.totalPoints}</td>
+                            <td>${player.daysPlayed}</td>
+                            <td>${player.totalWins}/${player.totalLosses}</td>
+                            <td>${player.avgWinRate}%</td>
+                            <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
+                        </tr>
+                    `;
+                });
+                
+                rankingHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('generalRankingContent').innerHTML = rankingHtml;
+            showNotification('Classement général mis à jour !', 'success');
+        }
+
+        function calculateGeneralStats() {
+            let totalPlayers = new Set();
+            let totalMatches = 0;
+            let completedMatches = 0;
+            let totalDays = Object.keys(championship.days).length;
+            
+            Object.values(championship.days).forEach(day => {
+                Object.values(day.players).forEach(divPlayers => {
+                    divPlayers.forEach(player => totalPlayers.add(player));
+                });
+                Object.values(day.matches).forEach(divMatches => {
+                    totalMatches += divMatches.length;
+                    completedMatches += divMatches.filter(match => match.completed).length;
+                });
+            });
+            
+            return {
+                totalDays,
+                totalPlayers: totalPlayers.size,
+                totalMatches,
+                completedMatches
+            };
+        }
+
+        function calculateGeneralRanking() {
+            const generalRanking = {
+                hasData: false,
+                divisions: { 1: [], 2: [], 3: [] }
+            };
+            
+            // Collecter tous les joueurs et leurs stats par division
+            for (let division = 1; division <= 3; division++) {
+                const playersData = {};
+                
+                Object.keys(championship.days).forEach(dayNumber => {
+                    const dayNum = parseInt(dayNumber);
+                    const dayData = championship.days[dayNum];
+                    
+                    dayData.players[division].forEach(playerName => {
+                        if (!playersData[playerName]) {
+                            playersData[playerName] = {
+                                name: playerName,
+                                daysPlayed: 0,
+                                totalPoints: 0,
+                                totalWins: 0,
+                                totalLosses: 0,
+                                totalSetsWon: 0,
+                                totalSetsLost: 0,
+                                totalMatchesPlayed: 0,
+                                winRates: []
+                            };
+                        }
+                        
+                        const dayStats = calculatePlayerStats(dayNum, division, playerName);
+                        if (dayStats && dayStats.matchesPlayed > 0) {
+                            playersData[playerName].daysPlayed++;
+                            playersData[playerName].totalPoints += dayStats.totalPoints;
+                            playersData[playerName].totalWins += dayStats.wins;
+                            playersData[playerName].totalLosses += dayStats.losses;
+                            playersData[playerName].totalSetsWon += dayStats.setsWon;
+                            playersData[playerName].totalSetsLost += dayStats.setsLost;
+                            playersData[playerName].totalMatchesPlayed += dayStats.matchesPlayed;
+                            playersData[playerName].winRates.push(dayStats.winRate);
+                            
+                            generalRanking.hasData = true;
+                        }
+                    });
+                });
+                
+                // Calculer le pourcentage de victoire moyen et trier
+                const playersArray = Object.values(playersData)
+                    .filter(player => player.daysPlayed > 0)
+                    .map(player => ({
+                        ...player,
+                        avgWinRate: player.winRates.length > 0 ? 
+                            Math.round(player.winRates.reduce((a, b) => a + b, 0) / player.winRates.length) : 0
+                    }))
+                    .sort((a, b) => {
+                        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+                        if (b.avgWinRate !== a.avgWinRate) return b.avgWinRate - a.avgWinRate;
+                        return b.totalSetsWon - a.totalSetsWon;
+                    });
+                
+                generalRanking.divisions[division] = playersArray;
+            }
+            
+            return generalRanking;
+        }
+
+        function showGeneralPlayerDetails(playerName, division) {
+            const playerHistory = [];
+            
+            Object.keys(championship.days).sort((a, b) => Number(a) - Number(b)).forEach(dayNumber => {
+                const dayNum = parseInt(dayNumber);
+                const dayData = championship.days[dayNum];
+                
+                if (dayData.players[division].includes(playerName)) {
+                    const dayStats = calculatePlayerStats(dayNum, division, playerName);
+                    if (dayStats && dayStats.matchesPlayed > 0) {
+                        playerHistory.push({
+                            day: dayNum,
+                            ...dayStats
+                        });
+                    }
+                }
+            });
+            
+            if (playerHistory.length === 0) {
+                alert('Aucun match joué par ce joueur');
+                return;
+            }
+            
+            // Calculer les totaux
+            const totals = playerHistory.reduce((acc, day) => ({
+                totalPoints: acc.totalPoints + day.totalPoints,
+                totalWins: acc.totalWins + day.wins,
+                totalLosses: acc.totalLosses + day.losses,
+                totalSetsWon: acc.totalSetsWon + day.setsWon,
+                totalSetsLost: acc.totalSetsLost + day.setsLost,
+                totalMatchesPlayed: acc.totalMatchesPlayed + day.matchesPlayed
+            }), {
+                totalPoints: 0,
+                totalWins: 0,
+                totalLosses: 0,
+                totalSetsWon: 0,
+                totalSetsLost: 0,
+                totalMatchesPlayed: 0
+            });
+            
+            const avgWinRate = totals.totalMatchesPlayed > 0 ? 
+                Math.round((totals.totalWins / totals.totalMatchesPlayed) * 100) : 0;
+            
+            document.getElementById('playerNameTitle').textContent = `${playerName} - Division ${division} - Vue Générale`;
+            
+            document.getElementById('playerOverview').innerHTML = `
+                <div class="overview-card">
+                    <div class="overview-number">${playerHistory.length}</div>
+                    <div class="overview-label">Journées jouées</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-number">${totals.totalPoints}</div>
+                    <div class="overview-label">Points total</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-number">${totals.totalWins}/${totals.totalLosses}</div>
+                    <div class="overview-label">V/D Global</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-number">${avgWinRate}%</div>
+                    <div class="overview-label">% Victoires</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-number">${totals.totalSetsWon}/${totals.totalSetsLost}</div>
+                    <div class="overview-label">Sets Global</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-number">${totals.totalMatchesPlayed}</div>
+                    <div class="overview-label">Matchs total</div>
+                </div>
+            `;
+            
+            let historyHtml = '<h4 style="color: #2c3e50; margin-bottom: 15px;">📈 Performance par journée</h4>';
+            playerHistory.forEach(dayStats => {
+                const performanceClass = dayStats.winRate >= 60 ? 'win' : dayStats.winRate >= 40 ? '' : 'loss';
+                
+                historyHtml += `
+                    <div class="history-match ${performanceClass}">
+                        <div>
+                            <div class="history-opponent">Journée ${dayStats.day}</div>
+                            <div style="font-size: 12px; color: #7f8c8d;">
+                                ${dayStats.wins}V/${dayStats.losses}D - ${dayStats.matchesPlayed} matchs
+                            </div>
+                        </div>
+                        <div class="history-score">
+                            <div style="font-weight: bold;">${dayStats.totalPoints} pts</div>
+                            <div style="font-size: 12px;">${dayStats.winRate}% vict.</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('playerMatches').innerHTML = historyHtml;
+            document.getElementById('playerModal').style.display = 'block';
+        }
+
+        function exportGeneralRanking() {
+            const generalRanking = calculateGeneralRanking();
+            const generalStats = calculateGeneralStats();
+            
+            const exportData = {
+                version: "2.0",
+                exportDate: new Date().toISOString(),
+                exportType: "general_ranking",
+                championshipStats: generalStats,
+                rankings: generalRanking.divisions,
+                summary: {
+                    totalDaysInChampionship: Object.keys(championship.days).length,
+                    rankedDivisions: Object.keys(generalRanking.divisions).filter(div => 
+                        generalRanking.divisions[div].length > 0
+                    ).length
+                }
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `classement_general_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('Classement général exporté !', 'success');
         }
     </script>
 </body>
