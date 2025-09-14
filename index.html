@@ -1802,7 +1802,175 @@
             }
         }
 
-        // Import et bulk (adapté pour journées multiples)
+        // NOUVELLES FONCTIONS POUR JOURNÉES MULTIPLES
+
+        function handleFileImportForDay(event, dayNumber) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    
+                    if (file.name.endsWith('.csv')) {
+                        const text = e.target.result;
+                        data = parseCSV(text);
+                    } else {
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    }
+                    
+                    importPlayersFromData(data, dayNumber);
+                    
+                } catch (error) {
+                    alert('Erreur lors de la lecture du fichier : ' + error.message);
+                }
+            };
+            
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function showBulkInputForDay(dayNumber) {
+            const division = document.getElementById(`bulkDivision-${dayNumber}`).value;
+            document.getElementById('selectedDivision').textContent = `Division ${division} - Journée ${dayNumber}`;
+            document.getElementById('bulkModal').style.display = 'block';
+            document.getElementById('bulkText').focus();
+            
+            // Stocker le dayNumber pour l'utiliser dans addBulkPlayers
+            document.getElementById('bulkModal').dataset.dayNumber = dayNumber;
+            document.getElementById('bulkModal').dataset.division = division;
+        }
+
+        function addBulkPlayers() {
+            const text = document.getElementById('bulkText').value.trim();
+            const modal = document.getElementById('bulkModal');
+            const dayNumber = parseInt(modal.dataset.dayNumber) || championship.currentDay;
+            const division = parseInt(modal.dataset.division) || parseInt(document.getElementById('bulkDivision').value);
+            
+            if (!text) {
+                alert('Veuillez entrer au moins un nom de joueur');
+                return;
+            }
+            
+            const names = text.split('\n')
+                             .map(name => name.trim())
+                             .filter(name => name.length > 0);
+            
+            let added = 0;
+            let duplicates = [];
+            
+            if (!championship.days[dayNumber]) {
+                championship.days[dayNumber] = {
+                    players: { 1: [], 2: [], 3: [] },
+                    matches: { 1: [], 2: [], 3: [] }
+                };
+            }
+            
+            names.forEach(name => {
+                if (!championship.days[dayNumber].players[division].includes(name)) {
+                    championship.days[dayNumber].players[division].push(name);
+                    added++;
+                } else {
+                    duplicates.push(name);
+                }
+            });
+            
+            updatePlayersDisplay(dayNumber);
+            saveToLocalStorage();
+            
+            let message = `✅ ${added} joueurs ajoutés à la Division ${division} - Journée ${dayNumber} !`;
+            if (duplicates.length > 0) {
+                message += `\n\n⚠️ Joueurs déjà présents (ignorés): ${duplicates.join(', ')}`;
+            }
+            
+            alert(message);
+            closeBulkModal();
+        }
+
+        function copyPlayersFromPreviousDay(dayNumber) {
+            const previousDay = dayNumber - 1;
+            
+            if (!championship.days[previousDay]) {
+                alert(`Aucune journée ${previousDay} trouvée`);
+                return;
+            }
+            
+            const prevPlayers = championship.days[previousDay].players;
+            let totalPlayers = 0;
+            
+            for (let division = 1; division <= 3; division++) {
+                totalPlayers += prevPlayers[division].length;
+            }
+            
+            if (totalPlayers === 0) {
+                alert(`Aucun joueur à copier depuis la Journée ${previousDay}`);
+                return;
+            }
+            
+            const confirmMsg = `Copier les joueurs de la Journée ${previousDay} vers la Journée ${dayNumber} ?\n\n` +
+                              `Division 1: ${prevPlayers[1].length} joueurs\n` +
+                              `Division 2: ${prevPlayers[2].length} joueurs\n` +
+                              `Division 3: ${prevPlayers[3].length} joueurs\n\n` +
+                              `Total: ${totalPlayers} joueurs`;
+            
+            if (confirm(confirmMsg)) {
+                // Copier les joueurs
+                for (let division = 1; division <= 3; division++) {
+                    championship.days[dayNumber].players[division] = [...prevPlayers[division]];
+                }
+                
+                updatePlayersDisplay(dayNumber);
+                saveToLocalStorage();
+                
+                showNotification(`${totalPlayers} joueurs copiés de J${previousDay} vers J${dayNumber}`, 'success');
+            }
+        }
+
+        function clearDayData(dayNumber) {
+            const dayData = championship.days[dayNumber];
+            if (!dayData) return;
+            
+            let totalPlayers = 0;
+            let totalMatches = 0;
+            
+            for (let division = 1; division <= 3; division++) {
+                totalPlayers += dayData.players[division].length;
+                totalMatches += dayData.matches[division].length;
+            }
+            
+            if (totalPlayers === 0 && totalMatches === 0) {
+                alert(`La Journée ${dayNumber} est déjà vide`);
+                return;
+            }
+            
+            const confirmMsg = `Vider complètement la Journée ${dayNumber} ?\n\n` +
+                              `Cela supprimera :\n` +
+                              `• ${totalPlayers} joueurs\n` +
+                              `• ${totalMatches} matchs\n` +
+                              `• Tous les scores\n\n` +
+                              `Cette action est irréversible !`;
+            
+            if (confirm(confirmMsg)) {
+                championship.days[dayNumber] = {
+                    players: { 1: [], 2: [], 3: [] },
+                    matches: { 1: [], 2: [], 3: [] }
+                };
+                
+                updatePlayersDisplay(dayNumber);
+                updateMatchesDisplay(dayNumber);
+                updateStats(dayNumber);
+                document.getElementById(`rankings-${dayNumber}`).style.display = 'none';
+                
+                saveToLocalStorage();
+                showNotification(`Journée ${dayNumber} vidée`, 'warning');
+            }
+        }
         function handleFileImport(event) {
             const file = event.target.files[0];
             if (!file) return;
