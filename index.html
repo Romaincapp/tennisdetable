@@ -758,8 +758,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏓 Tournoi de Tennis de Tablev2.2</h1>
-            <p>Gestion simple et efficace de votre tournoi - 4 tours par joueur</p>
+            <h1>🏓 Tournoi de Tennis de Table</h1>
+            <p>Gestion simple et efficace de votre tournoi - 1 match par joueur par tour</p>
         </div>
         
         <div class="content">
@@ -813,7 +813,7 @@
                 </div>
                 
                 <button class="btn" onclick="generateMatches()" style="font-size: 18px; padding: 15px 25px;">
-                    🎯 Générer les Matchs par Tours (4 matchs/joueur - 3 sets/match)
+                    🎯 Générer les Matchs par Tours (1 match/joueur/tour - Round-Robin)
                 </button>
                 
                 <!-- Guide de saisie -->
@@ -832,6 +832,9 @@
                         </div>
                         <div class="guide-item">
                             <span>🏆 Le match se termine dès qu'un joueur gagne 2 sets</span>
+                        </div>
+                        <div class="guide-item">
+                            <span>⚖️ Nombres impairs : rotation équitable des byes</span>
                         </div>
                     </div>
                 </div>
@@ -1131,7 +1134,7 @@
 
         function generateMatches() {
             for (let division = 1; division <= 3; division++) {
-                const divisionPlayers = players[division];
+                const divisionPlayers = [...players[division]]; // Copie pour manipulation
                 
                 if (divisionPlayers.length < 2) {
                     if (divisionPlayers.length === 1) {
@@ -1141,64 +1144,109 @@
                 }
                 
                 matches[division] = [];
-                const playerMatchCount = {};
                 
-                divisionPlayers.forEach(player => {
-                    playerMatchCount[player] = 0;
-                });
+                // Générer les matchs avec système de rotation pour garantir 1 match par joueur par tour
+                const totalRounds = 4;
+                const playersWithBye = [...divisionPlayers];
                 
-                // Générer les matchs tour par tour
-                for (let tour = 1; tour <= 4; tour++) {
-                    const availablePlayers = divisionPlayers.filter(player => 
-                        playerMatchCount[player] < tour
-                    );
+                // Si nombre impair, ajouter un joueur fictif "BYE" pour les calculs
+                const isOddNumber = playersWithBye.length % 2 !== 0;
+                if (isOddNumber) {
+                    playersWithBye.push("BYE");
+                }
+                
+                const numPlayers = playersWithBye.length;
+                
+                // Générer les matchs pour chaque tour
+                for (let tour = 1; tour <= totalRounds; tour++) {
+                    const tournée = [];
                     
-                    const usedInThisTour = [];
-                    
-                    for (let i = 0; i < availablePlayers.length; i++) {
-                        if (usedInThisTour.includes(availablePlayers[i])) continue;
+                    // Algorithme round-robin classique
+                    for (let i = 0; i < numPlayers / 2; i++) {
+                        let player1Index, player2Index;
                         
-                        const player1 = availablePlayers[i];
+                        if (i === 0) {
+                            // Le premier joueur reste fixe
+                            player1Index = 0;
+                            player2Index = numPlayers - 1;
+                        } else {
+                            player1Index = i;
+                            player2Index = numPlayers - 1 - i;
+                        }
                         
-                        for (let j = i + 1; j < availablePlayers.length; j++) {
-                            if (usedInThisTour.includes(availablePlayers[j])) continue;
-                            
-                            const player2 = availablePlayers[j];
-                            
-                            const alreadyPlayed = matches[division].some(match => 
-                                (match.player1 === player1 && match.player2 === player2) ||
-                                (match.player1 === player2 && match.player2 === player1)
-                            );
-                            
-                            if (!alreadyPlayed) {
-                                const matchData = {
-                                    player1: player1,
-                                    player2: player2,
-                                    tour: tour,
-                                    sets: [
-                                        { player1Score: '', player2Score: '' },
-                                        { player1Score: '', player2Score: '' },
-                                        { player1Score: '', player2Score: '' }
-                                    ],
-                                    completed: false,
-                                    winner: null
-                                };
-                                
-                                matches[division].push(matchData);
-                                
-                                playerMatchCount[player1]++;
-                                playerMatchCount[player2]++;
-                                
-                                usedInThisTour.push(player1, player2);
-                                break;
+                        // Appliquer la rotation pour le tour actuel
+                        if (tour > 1) {
+                            const rotation = tour - 1;
+                            if (player1Index !== 0) {
+                                player1Index = (player1Index + rotation - 1) % (numPlayers - 1) + 1;
                             }
+                            if (player2Index !== 0) {
+                                player2Index = (player2Index + rotation - 1) % (numPlayers - 1) + 1;
+                            }
+                        }
+                        
+                        const player1 = playersWithBye[player1Index];
+                        const player2 = playersWithBye[player2Index];
+                        
+                        // Créer le match seulement si aucun des deux n'est "BYE"
+                        if (player1 !== "BYE" && player2 !== "BYE") {
+                            const matchData = {
+                                player1: player1,
+                                player2: player2,
+                                tour: tour,
+                                sets: [
+                                    { player1Score: '', player2Score: '' },
+                                    { player1Score: '', player2Score: '' },
+                                    { player1Score: '', player2Score: '' }
+                                ],
+                                completed: false,
+                                winner: null
+                            };
+                            
+                            matches[division].push(matchData);
+                        } else if (player1 === "BYE") {
+                            // player2 a un bye
+                            console.log(`Tour ${tour}: ${player2} a un bye`);
+                        } else if (player2 === "BYE") {
+                            // player1 a un bye
+                            console.log(`Tour ${tour}: ${player1} a un bye`);
                         }
                     }
                 }
+                
+                // Mélanger légèrement l'ordre des matchs pour plus de variété
+                matches[division] = shuffleArray([...matches[division]]);
             }
             
             updateMatchesDisplay();
             updateStats();
+            
+            // Afficher un résumé de la génération
+            let summary = "Matchs générés avec succès !\n\n";
+            for (let division = 1; division <= 3; division++) {
+                if (players[division].length > 0) {
+                    const totalMatches = matches[division].length;
+                    const playersCount = players[division].length;
+                    const isOdd = playersCount % 2 !== 0;
+                    
+                    summary += `Division ${division}: ${playersCount} joueurs, ${totalMatches} matchs`;
+                    if (isOdd) {
+                        summary += ` (avec rotation des byes)`;
+                    }
+                    summary += `\n`;
+                }
+            }
+            alert(summary);
+        }
+        
+        // Fonction utilitaire pour mélanger un tableau
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
         }
 
         function updateMatchesDisplay() {
