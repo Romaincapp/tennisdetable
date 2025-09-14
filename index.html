@@ -1885,6 +1885,228 @@
             document.getElementById('rankings').style.display = 'block';
             document.getElementById('rankings').scrollIntoView({ behavior: 'smooth' });
         }
+
+        // ========== FONCTIONNALITÉS SAUVEGARDE / EXPORT / IMPORT ==========
+
+        function saveToLocalStorage() {
+            try {
+                const tournamentData = {
+                    version: "1.0",
+                    timestamp: new Date().toISOString(),
+                    players: players,
+                    matches: matches
+                };
+                localStorage.setItem('tennisTableTournament', JSON.stringify(tournamentData));
+                console.log('Données sauvegardées automatiquement');
+            } catch (error) {
+                console.error('Erreur sauvegarde localStorage:', error);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('tennisTableTournament');
+                if (savedData) {
+                    const tournamentData = JSON.parse(savedData);
+                    players = tournamentData.players || { 1: [], 2: [], 3: [] };
+                    matches = tournamentData.matches || { 1: [], 2: [], 3: [] };
+                    
+                    updatePlayersDisplay();
+                    updateMatchesDisplay();
+                    updateStats();
+                    
+                    console.log('Données restaurées depuis localStorage');
+                    
+                    // Afficher un message discret
+                    const info = document.createElement('div');
+                    info.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 8px; z-index: 1000; font-size: 14px;';
+                    info.textContent = 'Tournoi restauré automatiquement';
+                    document.body.appendChild(info);
+                    setTimeout(() => info.remove(), 3000);
+                }
+            } catch (error) {
+                console.error('Erreur chargement localStorage:', error);
+            }
+        }
+
+        function exportTournament() {
+            const tournamentData = {
+                version: "1.0",
+                exportDate: new Date().toISOString(),
+                tournamentName: `Tournoi_${new Date().toISOString().slice(0,10)}`,
+                players: players,
+                matches: matches,
+                stats: {
+                    totalPlayers: players[1].length + players[2].length + players[3].length,
+                    totalMatches: matches[1].length + matches[2].length + matches[3].length
+                }
+            };
+
+            const dataStr = JSON.stringify(tournamentData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `tournoi_tennis_table_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Message de confirmation
+            const info = document.createElement('div');
+            info.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #3498db; color: white; padding: 10px 20px; border-radius: 8px; z-index: 1000; font-size: 14px;';
+            info.textContent = 'Tournoi exporté avec succès !';
+            document.body.appendChild(info);
+            setTimeout(() => info.remove(), 3000);
+        }
+
+        function showImportModal() {
+            document.getElementById('importModal').style.display = 'block';
+            document.getElementById('importFileInput').value = '';
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').style.display = 'none';
+            document.getElementById('importFileInput').value = '';
+        }
+
+        function handleTournamentImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const tournamentData = JSON.parse(e.target.result);
+                    
+                    // Validation basique
+                    if (!tournamentData.players || !tournamentData.matches) {
+                        throw new Error('Format de fichier invalide');
+                    }
+                    
+                    // Afficher les détails du tournoi à importer
+                    const importDate = new Date(tournamentData.exportDate || tournamentData.timestamp || Date.now()).toLocaleString('fr-FR');
+                    const totalPlayers = (tournamentData.players[1]?.length || 0) + (tournamentData.players[2]?.length || 0) + (tournamentData.players[3]?.length || 0);
+                    const totalMatches = (tournamentData.matches[1]?.length || 0) + (tournamentData.matches[2]?.length || 0) + (tournamentData.matches[3]?.length || 0);
+                    
+                    const confirmMsg = `Confirmer l'import du tournoi ?\n\n` +
+                                     `📅 Exporté le : ${importDate}\n` +
+                                     `👥 Joueurs : ${totalPlayers}\n` +
+                                     `🎯 Matchs : ${totalMatches}\n\n` +
+                                     `⚠️ Cette action remplacera complètement le tournoi actuel`;
+                    
+                    if (confirm(confirmMsg)) {
+                        // Sauvegarder les données importées
+                        window.importedTournamentData = tournamentData;
+                        closeImportModal();
+                    }
+                    
+                } catch (error) {
+                    alert('Erreur lors de la lecture du fichier :\n' + error.message + '\n\nVérifiez que le fichier est un export valide.');
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+        function processImport() {
+            if (!window.importedTournamentData) {
+                alert('Aucun fichier sélectionné');
+                return;
+            }
+            
+            try {
+                const tournamentData = window.importedTournamentData;
+                
+                // Réinitialiser et importer
+                players = tournamentData.players || { 1: [], 2: [], 3: [] };
+                matches = tournamentData.matches || { 1: [], 2: [], 3: [] };
+                
+                // Valider la structure des données
+                for (let division = 1; division <= 3; division++) {
+                    if (!Array.isArray(players[division])) players[division] = [];
+                    if (!Array.isArray(matches[division])) matches[division] = [];
+                }
+                
+                // Mettre à jour l'interface
+                updatePlayersDisplay();
+                updateMatchesDisplay();
+                updateStats();
+                
+                // Sauvegarder automatiquement
+                saveToLocalStorage();
+                
+                delete window.importedTournamentData;
+                
+                alert('Tournoi importé avec succès !');
+                
+            } catch (error) {
+                alert('Erreur lors de l\'import : ' + error.message);
+            }
+        }
+
+        function clearAllData() {
+            const confirmMsg = `⚠️ ATTENTION ⚠️\n\n` +
+                              `Cette action va SUPPRIMER DÉFINITIVEMENT :\n` +
+                              `• Tous les joueurs\n` +
+                              `• Tous les matchs\n` +
+                              `• Tous les scores\n` +
+                              `• La sauvegarde automatique\n\n` +
+                              `Cette action est IRRÉVERSIBLE !\n\n` +
+                              `Êtes-vous vraiment sûr ?`;
+            
+            if (confirm(confirmMsg)) {
+                const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUTES les données du tournoi ?');
+                
+                if (doubleConfirm) {
+                    // Réinitialiser toutes les données
+                    players = { 1: [], 2: [], 3: [] };
+                    matches = { 1: [], 2: [], 3: [] };
+                    
+                    // Supprimer de localStorage
+                    localStorage.removeItem('tennisTableTournament');
+                    
+                    // Mettre à jour l'interface
+                    updatePlayersDisplay();
+                    updateMatchesDisplay();
+                    updateStats();
+                    document.getElementById('rankings').style.display = 'none';
+                    
+                    alert('Toutes les données ont été supprimées.');
+                }
+            }
+        }
+
+        // Modifier les fonctions existantes pour sauvegarder automatiquement
+        const originalAddPlayer = addPlayer;
+        addPlayer = function() {
+            originalAddPlayer();
+            saveToLocalStorage();
+        };
+
+        const originalRemovePlayer = removePlayer;
+        removePlayer = function(division, playerName) {
+            originalRemovePlayer(division, playerName);
+            saveToLocalStorage();
+        };
+
+        const originalAddBulkPlayers = addBulkPlayers;
+        addBulkPlayers = function() {
+            originalAddBulkPlayers();
+            saveToLocalStorage();
+        };
+
+        const originalGenerateMatches = generateMatches;
+        generateMatches = function() {
+            originalGenerateMatches();
+            saveToLocalStorage();
+        };
+
+        const originalUpdateSetScore = updateSetScore;
+        updateSetScore = function(division, matchIndex, setIndex, scoreField, value) {
+            originalUpdateSetScore(division, matchIndex, setIndex, scoreField, value);
+            saveToLocalStorage();
+        };
     </script>
 </body>
 </html>
