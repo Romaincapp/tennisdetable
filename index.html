@@ -2149,32 +2149,9 @@ function updatePlayersDisplay(dayNumber) {
 }
 
 // GÉNÉRATION DES MATCHS (Hub Central)
-function generateMatches() {
-    const targetDay = parseInt(document.getElementById('targetDay').value);
-    generateMatchesForDay(targetDay);
-}
-
 function generateMatchesForDay(dayNumber) {
     const dayData = championship.days[dayNumber];
     if (!dayData) return;
-    
-    // Calculer le tour de départ basé sur les journées précédentes
-    let startingTour = 1;
-    
-    // Chercher le dernier tour utilisé dans les journées précédentes
-    for (let prevDay = dayNumber - 1; prevDay >= 1; prevDay--) {
-        if (championship.days[prevDay] && championship.days[prevDay].matches) {
-            for (let div = 1; div <= 3; div++) {
-                const prevMatches = championship.days[prevDay].matches[div];
-                if (prevMatches && prevMatches.length > 0) {
-                    const maxTour = Math.max(...prevMatches.map(m => m.tour || 0));
-                    if (maxTour > 0) {
-                        startingTour = Math.max(startingTour, maxTour + 1);
-                    }
-                }
-            }
-        }
-    }
     
     for (let division = 1; division <= 3; division++) {
         const divisionPlayers = [...dayData.players[division]];
@@ -2188,124 +2165,161 @@ function generateMatchesForDay(dayNumber) {
         
         dayData.matches[division] = [];
         
-        const totalRounds = 4; // 4 tours par journée
-        const playersWithBye = [...divisionPlayers];
+        // Collecter TOUS les matchs déjà joués dans toutes les journées précédentes
+        const matchHistory = {};  // Compte combien de fois chaque paire s'est rencontrée
         
-        const isOddNumber = playersWithBye.length % 2 !== 0;
-        if (isOddNumber) {
-            playersWithBye.push("BYE");
+        // Initialiser le compteur pour toutes les paires possibles
+        for (let i = 0; i < divisionPlayers.length; i++) {
+            for (let j = i + 1; j < divisionPlayers.length; j++) {
+                const key = [divisionPlayers[i], divisionPlayers[j]].sort().join(' vs ');
+                matchHistory[key] = 0;
+            }
         }
         
-        const numPlayers = playersWithBye.length;
-        const maxPossibleRounds = numPlayers - 1; // Maximum de tours uniques possibles
-        
-        // Collecter tous les matchs déjà joués dans les journées précédentes
-        const previousMatches = new Set();
+        // Compter les matchs déjà joués
         for (let prevDay = 1; prevDay < dayNumber; prevDay++) {
             if (championship.days[prevDay] && championship.days[prevDay].matches[division]) {
                 championship.days[prevDay].matches[division].forEach(match => {
-                    // Créer une clé unique pour chaque paire de joueurs
-                    const key = [match.player1, match.player2].sort().join(' vs ');
-                    previousMatches.add(key);
+                    // Vérifier si les deux joueurs sont présents dans cette journée
+                    if (divisionPlayers.includes(match.player1) && divisionPlayers.includes(match.player2)) {
+                        const key = [match.player1, match.player2].sort().join(' vs ');
+                        if (matchHistory[key] !== undefined) {
+                            matchHistory[key]++;
+                        }
+                    }
                 });
             }
         }
         
+        // Créer toutes les paires possibles avec leur priorité
+        const possibleMatches = [];
+        for (let i = 0; i < divisionPlayers.length; i++) {
+            for (let j = i + 1; j < divisionPlayers.length; j++) {
+                const player1 = divisionPlayers[i];
+                const player2 = divisionPlayers[j];
+                const key = [player1, player2].sort().join(' vs ');
+                
+                possibleMatches.push({
+                    player1: player1,
+                    player2: player2,
+                    timesPlayed: matchHistory[key] || 0,
+                    key: key
+                });
+            }
+        }
+        
+        // Trier par priorité : d'abord ceux qui ne se sont jamais rencontrés, puis par nombre de rencontres
+        possibleMatches.sort((a, b) => a.timesPlayed - b.timesPlayed);
+        
         // Générer les matchs pour cette journée
-        for (let tourOffset = 0; tourOffset < totalRounds; tourOffset++) {
-            const actualTour = startingTour + tourOffset;
-            const roundRobinTour = ((actualTour - 1) % maxPossibleRounds) + 1;
+        const playersMatchCount = {}; // Compte combien de matchs chaque joueur a dans cette journée
+        divisionPlayers.forEach(p => playersMatchCount[p] = 0);
+        
+        const targetMatchesPerPlayer = 4; // Essayer de donner 4 matchs à chaque joueur
+        const maxMatches = Math.floor((divisionPlayers.length * targetMatchesPerPlayer) / 2);
+        
+        // Sélectionner les matchs en prioritisant :
+        // 1. Les matchs jamais joués
+        // 2. L'équilibre du nombre de matchs par joueur
+        for (let tour = 1; tour <= 4; tour++) {
+            const tourMatches = [];
+            const playersInThisTour = new Set();
             
-            // Utiliser l'algorithme round-robin avec rotation continue
-            for (let i = 0; i < numPlayers / 2; i++) {
-                let player1Index, player2Index;
-                
-                if (i === 0) {
-                    player1Index = 0; // Le premier joueur reste fixe
-                    player2Index = numPlayers - 1;
-                } else {
-                    player1Index = i;
-                    player2Index = numPlayers - 1 - i;
-                }
-                
-                // Appliquer la rotation basée sur le tour round-robin
-                if (roundRobinTour > 1) {
-                    const rotation = roundRobinTour - 1;
-                    if (player1Index !== 0) {
-                        player1Index = ((player1Index - 1 + rotation) % (numPlayers - 1)) + 1;
-                    }
-                    if (player2Index !== 0) {
-                        player2Index = ((player2Index - 1 + rotation) % (numPlayers - 1)) + 1;
-                    }
-                }
-                
-                const player1 = playersWithBye[player1Index];
-                const player2 = playersWithBye[player2Index];
-                
-                if (player1 !== "BYE" && player2 !== "BYE") {
-                    // Vérifier si ce match n'a pas déjà été joué
-                    const matchKey = [player1, player2].sort().join(' vs ');
+            for (const matchPair of possibleMatches) {
+                // Vérifier si les joueurs sont disponibles pour ce tour
+                if (!playersInThisTour.has(matchPair.player1) && 
+                    !playersInThisTour.has(matchPair.player2) &&
+                    playersMatchCount[matchPair.player1] < targetMatchesPerPlayer &&
+                    playersMatchCount[matchPair.player2] < targetMatchesPerPlayer) {
                     
-                    if (!previousMatches.has(matchKey)) {
+                    // Priorité aux matchs jamais joués
+                    if (matchPair.timesPlayed === 0 || dayData.matches[division].length < maxMatches) {
                         const matchData = {
-                            player1: player1,
-                            player2: player2,
-                            tour: tourOffset + 1, // Tour local à cette journée (1-4)
-                            globalTour: actualTour, // Tour global pour le debug
+                            player1: matchPair.player1,
+                            player2: matchPair.player2,
+                            tour: tour,
                             sets: [
                                 { player1Score: '', player2Score: '' },
                                 { player1Score: '', player2Score: '' },
                                 { player1Score: '', player2Score: '' }
                             ],
                             completed: false,
-                            winner: null
+                            winner: null,
+                            isRematch: matchPair.timesPlayed > 0 // Marqueur pour identifier les revanches
                         };
                         
-                        dayData.matches[division].push(matchData);
-                        previousMatches.add(matchKey); // Ajouter à la liste pour éviter les doublons dans cette journée
+                        tourMatches.push(matchData);
+                        playersInThisTour.add(matchPair.player1);
+                        playersInThisTour.add(matchPair.player2);
+                        playersMatchCount[matchPair.player1]++;
+                        playersMatchCount[matchPair.player2]++;
+                        
+                        // Marquer ce match comme "utilisé"
+                        matchPair.timesPlayed++;
                     }
                 }
             }
+            
+            // Ajouter les matchs de ce tour
+            dayData.matches[division].push(...tourMatches);
         }
         
-        // Si on n'a pas assez de matchs uniques, avertir l'utilisateur
-        if (dayData.matches[division].length === 0 && divisionPlayers.length >= 2) {
-            alert(`⚠️ Division ${division} - Journée ${dayNumber}\n\nTous les matchs possibles ont déjà été joués dans les journées précédentes !\n\n` +
-                  `Avec ${divisionPlayers.length} joueurs, il y a maximum ${(divisionPlayers.length * (divisionPlayers.length - 1)) / 2} matchs uniques possibles.`);
-        }
+        // Mélanger l'ordre des matchs dans chaque tour pour plus de variété
+        const matchesByTour = {};
+        dayData.matches[division].forEach(match => {
+            if (!matchesByTour[match.tour]) matchesByTour[match.tour] = [];
+            matchesByTour[match.tour].push(match);
+        });
         
-        // Mélanger les matchs pour varier l'ordre
-        dayData.matches[division] = shuffleArray([...dayData.matches[division]]);
+        dayData.matches[division] = [];
+        for (let tour = 1; tour <= 4; tour++) {
+            if (matchesByTour[tour]) {
+                dayData.matches[division].push(...shuffleArray(matchesByTour[tour]));
+            }
+        }
     }
     
     updateMatchesDisplay(dayNumber);
     updateStats(dayNumber);
     saveToLocalStorage();
     
-    // Rapport détaillé
+    // Rapport détaillé avec statistiques
     let summary = `✅ Matchs générés pour la Journée ${dayNumber} !\n\n`;
-    let hasMatches = false;
+    let totalNewMatches = 0;
+    let totalRematches = 0;
     
     for (let division = 1; division <= 3; division++) {
         if (dayData.players[division].length > 0) {
-            const totalMatches = dayData.matches[division].length;
-            const playersCount = dayData.players[division].length;
+            const matches = dayData.matches[division];
+            const newMatches = matches.filter(m => !m.isRematch).length;
+            const rematches = matches.filter(m => m.isRematch).length;
             
-            if (totalMatches > 0) {
-                hasMatches = true;
-                summary += `Division ${division}: ${playersCount} joueurs, ${totalMatches} nouveaux matchs\n`;
-            } else if (playersCount >= 2) {
-                summary += `Division ${division}: Aucun nouveau match possible (tous déjà joués)\n`;
+            totalNewMatches += newMatches;
+            totalRematches += rematches;
+            
+            if (matches.length > 0) {
+                summary += `Division ${division}: ${dayData.players[division].length} joueurs\n`;
+                summary += `  → ${newMatches} nouveaux matchs`;
+                if (rematches > 0) {
+                    summary += ` + ${rematches} revanches`;
+                }
+                summary += '\n';
             }
         }
     }
     
-    if (hasMatches) {
-        summary += `\n💡 Les matchs sont la continuation du round-robin des journées précédentes.`;
+    if (totalNewMatches > 0 || totalRematches > 0) {
+        summary += `\n💡 Système intelligent : Priorité aux matchs inédits !`;
+        if (totalRematches > 0) {
+            summary += `\n⚠️ Quelques revanches nécessaires pour équilibrer les tours.`;
+        }
+    } else {
+        summary += `\n⚠️ Aucun match généré - Vérifiez les joueurs.`;
     }
     
     alert(summary);
 }
+        
 function shuffleArray(array) {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
