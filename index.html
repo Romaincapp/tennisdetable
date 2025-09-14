@@ -2158,6 +2158,24 @@ function generateMatchesForDay(dayNumber) {
     const dayData = championship.days[dayNumber];
     if (!dayData) return;
     
+    // Calculer le tour de départ basé sur les journées précédentes
+    let startingTour = 1;
+    
+    // Chercher le dernier tour utilisé dans les journées précédentes
+    for (let prevDay = dayNumber - 1; prevDay >= 1; prevDay--) {
+        if (championship.days[prevDay] && championship.days[prevDay].matches) {
+            for (let div = 1; div <= 3; div++) {
+                const prevMatches = championship.days[prevDay].matches[div];
+                if (prevMatches && prevMatches.length > 0) {
+                    const maxTour = Math.max(...prevMatches.map(m => m.tour || 0));
+                    if (maxTour > 0) {
+                        startingTour = Math.max(startingTour, maxTour + 1);
+                    }
+                }
+            }
+        }
+    }
+    
     for (let division = 1; division <= 3; division++) {
         const divisionPlayers = [...dayData.players[division]];
         
@@ -2170,7 +2188,7 @@ function generateMatchesForDay(dayNumber) {
         
         dayData.matches[division] = [];
         
-        const totalRounds = 4;
+        const totalRounds = 4; // 4 tours par journée
         const playersWithBye = [...divisionPlayers];
         
         const isOddNumber = playersWithBye.length % 2 !== 0;
@@ -2179,26 +2197,45 @@ function generateMatchesForDay(dayNumber) {
         }
         
         const numPlayers = playersWithBye.length;
+        const maxPossibleRounds = numPlayers - 1; // Maximum de tours uniques possibles
         
-        for (let tour = 1; tour <= totalRounds; tour++) {
+        // Collecter tous les matchs déjà joués dans les journées précédentes
+        const previousMatches = new Set();
+        for (let prevDay = 1; prevDay < dayNumber; prevDay++) {
+            if (championship.days[prevDay] && championship.days[prevDay].matches[division]) {
+                championship.days[prevDay].matches[division].forEach(match => {
+                    // Créer une clé unique pour chaque paire de joueurs
+                    const key = [match.player1, match.player2].sort().join(' vs ');
+                    previousMatches.add(key);
+                });
+            }
+        }
+        
+        // Générer les matchs pour cette journée
+        for (let tourOffset = 0; tourOffset < totalRounds; tourOffset++) {
+            const actualTour = startingTour + tourOffset;
+            const roundRobinTour = ((actualTour - 1) % maxPossibleRounds) + 1;
+            
+            // Utiliser l'algorithme round-robin avec rotation continue
             for (let i = 0; i < numPlayers / 2; i++) {
                 let player1Index, player2Index;
                 
                 if (i === 0) {
-                    player1Index = 0;
+                    player1Index = 0; // Le premier joueur reste fixe
                     player2Index = numPlayers - 1;
                 } else {
                     player1Index = i;
                     player2Index = numPlayers - 1 - i;
                 }
                 
-                if (tour > 1) {
-                    const rotation = tour - 1;
+                // Appliquer la rotation basée sur le tour round-robin
+                if (roundRobinTour > 1) {
+                    const rotation = roundRobinTour - 1;
                     if (player1Index !== 0) {
-                        player1Index = (player1Index + rotation - 1) % (numPlayers - 1) + 1;
+                        player1Index = ((player1Index - 1 + rotation) % (numPlayers - 1)) + 1;
                     }
                     if (player2Index !== 0) {
-                        player2Index = (player2Index + rotation - 1) % (numPlayers - 1) + 1;
+                        player2Index = ((player2Index - 1 + rotation) % (numPlayers - 1)) + 1;
                     }
                 }
                 
@@ -2206,24 +2243,38 @@ function generateMatchesForDay(dayNumber) {
                 const player2 = playersWithBye[player2Index];
                 
                 if (player1 !== "BYE" && player2 !== "BYE") {
-                    const matchData = {
-                        player1: player1,
-                        player2: player2,
-                        tour: tour,
-                        sets: [
-                            { player1Score: '', player2Score: '' },
-                            { player1Score: '', player2Score: '' },
-                            { player1Score: '', player2Score: '' }
-                        ],
-                        completed: false,
-                        winner: null
-                    };
+                    // Vérifier si ce match n'a pas déjà été joué
+                    const matchKey = [player1, player2].sort().join(' vs ');
                     
-                    dayData.matches[division].push(matchData);
+                    if (!previousMatches.has(matchKey)) {
+                        const matchData = {
+                            player1: player1,
+                            player2: player2,
+                            tour: tourOffset + 1, // Tour local à cette journée (1-4)
+                            globalTour: actualTour, // Tour global pour le debug
+                            sets: [
+                                { player1Score: '', player2Score: '' },
+                                { player1Score: '', player2Score: '' },
+                                { player1Score: '', player2Score: '' }
+                            ],
+                            completed: false,
+                            winner: null
+                        };
+                        
+                        dayData.matches[division].push(matchData);
+                        previousMatches.add(matchKey); // Ajouter à la liste pour éviter les doublons dans cette journée
+                    }
                 }
             }
         }
         
+        // Si on n'a pas assez de matchs uniques, avertir l'utilisateur
+        if (dayData.matches[division].length === 0 && divisionPlayers.length >= 2) {
+            alert(`⚠️ Division ${division} - Journée ${dayNumber}\n\nTous les matchs possibles ont déjà été joués dans les journées précédentes !\n\n` +
+                  `Avec ${divisionPlayers.length} joueurs, il y a maximum ${(divisionPlayers.length * (divisionPlayers.length - 1)) / 2} matchs uniques possibles.`);
+        }
+        
+        // Mélanger les matchs pour varier l'ordre
         dayData.matches[division] = shuffleArray([...dayData.matches[division]]);
     }
     
@@ -2231,23 +2282,30 @@ function generateMatchesForDay(dayNumber) {
     updateStats(dayNumber);
     saveToLocalStorage();
     
-    let summary = `Matchs générés avec succès pour la Journée ${dayNumber} !\n\n`;
+    // Rapport détaillé
+    let summary = `✅ Matchs générés pour la Journée ${dayNumber} !\n\n`;
+    let hasMatches = false;
+    
     for (let division = 1; division <= 3; division++) {
         if (dayData.players[division].length > 0) {
             const totalMatches = dayData.matches[division].length;
             const playersCount = dayData.players[division].length;
-            const isOdd = playersCount % 2 !== 0;
             
-            summary += `Division ${division}: ${playersCount} joueurs, ${totalMatches} matchs`;
-            if (isOdd) {
-                summary += ` (avec rotation des byes)`;
+            if (totalMatches > 0) {
+                hasMatches = true;
+                summary += `Division ${division}: ${playersCount} joueurs, ${totalMatches} nouveaux matchs\n`;
+            } else if (playersCount >= 2) {
+                summary += `Division ${division}: Aucun nouveau match possible (tous déjà joués)\n`;
             }
-            summary += `\n`;
         }
     }
+    
+    if (hasMatches) {
+        summary += `\n💡 Les matchs sont la continuation du round-robin des journées précédentes.`;
+    }
+    
     alert(summary);
 }
-
 function shuffleArray(array) {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
