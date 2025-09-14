@@ -1330,12 +1330,24 @@ function createDayTab(dayNumber) {
     
     const newTab = document.createElement('button');
     newTab.className = 'tab';
+    
+    // Ajouter la classe hub-central pour la journée 1
+    if (dayNumber === 1) {
+        newTab.classList.add('hub-central');
+    }
+    
     newTab.onclick = () => switchTab(dayNumber);
     newTab.dataset.day = dayNumber;
-    newTab.innerHTML = `
-        Journée ${dayNumber}
-        <button class="remove-day" onclick="event.stopPropagation(); removeDay(${dayNumber})" title="Supprimer">×</button>
-    `;
+    
+    // Ne pas ajouter le bouton de suppression pour la journée 1
+    if (dayNumber === 1) {
+        newTab.innerHTML = `Journée ${dayNumber} <span style="font-size: 10px; opacity: 0.7;">(Hub Central)</span>`;
+    } else {
+        newTab.innerHTML = `
+            Journée ${dayNumber}
+            <button class="remove-day" onclick="event.stopPropagation(); removeDay(${dayNumber})" title="Supprimer">×</button>
+        `;
+    }
     
     tabsContainer.insertBefore(newTab, addButton);
 }
@@ -1431,6 +1443,11 @@ function removeDay(dayNumber) {
         saveToLocalStorage();
         showNotification(`Journée ${dayNumber} supprimée`, 'warning');
     }
+    // Protection spéciale pour la Journée 1 (Hub Central)
+        if (dayNumber === 1) {
+         alert('⚠️ Impossible de supprimer la Journée 1 !\n\nLa Journée 1 est le Hub Central pour la gestion des joueurs.\nElle ne peut pas être supprimée.');
+         return;
+}
 }
 
 function switchTab(dayNumber) {
