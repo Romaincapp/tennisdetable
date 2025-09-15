@@ -1207,6 +1207,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDivisionsDisplay();
     updateTabsDisplay();
     updateDaySelectors();
+    startAutoSave();
+
+    window.addEventListener('beforeunload', function(e) {
+    saveToLocalStorage();
 });
 
 function setupEventListeners() {
@@ -1530,13 +1534,68 @@ function saveToLocalStorage() {
             timestamp: new Date().toISOString(),
             championship: championship
         };
-        localStorage.setItem('tennisTableChampionship', JSON.stringify(championshipData));
-        console.log('✅ Championnat sauvegardé automatiquement');
+        
+        const dataStr = JSON.stringify(championshipData);
+        localStorage.setItem('tennisTableChampionship', dataStr);
+        
+        // Vérification que la sauvegarde a réussi
+        const saved = localStorage.getItem('tennisTableChampionship');
+        if (saved) {
+            console.log(`✅ Sauvegarde réussie (${(dataStr.length / 1024).toFixed(2)} KB) à ${new Date().toLocaleTimeString()}`);
+            return true;
+        } else {
+            console.error('❌ Échec de la sauvegarde');
+            return false;
+        }
+        
     } catch (error) {
         console.error('❌ Erreur sauvegarde localStorage:', error);
+        
+        // Si quota dépassé, proposer de nettoyer
+        if (error.name === 'QuotaExceededError') {
+            if (confirm('Espace de stockage insuffisant. Voulez-vous exporter vos données avant de nettoyer ?')) {
+                exportChampionship();
+            }
+        }
+        
         showNotification('Erreur de sauvegarde', 'warning');
+        return false;
     }
 }
+
+// ============================================
+// AJOUT : Auto-save périodique toutes les 30 secondes
+// ============================================
+
+// 5. Sauvegarde automatique périodique
+let autoSaveInterval = null;
+
+function startAutoSave() {
+    // Arrêter l'ancien interval s'il existe
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+    }
+    
+    // Sauvegarder toutes les 30 secondes
+    autoSaveInterval = setInterval(() => {
+        if (saveToLocalStorage()) {
+            console.log('⏰ Sauvegarde automatique périodique');
+        }
+    }, 30000); // 30 secondes
+}
+
+// Démarrer l'auto-save au chargement
+document.addEventListener('DOMContentLoaded', function() {
+    // ... code existant ...
+    
+    // AJOUT : Démarrer la sauvegarde automatique
+    startAutoSave();
+    
+    // AJOUT : Sauvegarder avant de quitter la page
+    window.addEventListener('beforeunload', function(e) {
+        saveToLocalStorage();
+    });
+});
 
 function loadFromLocalStorage() {
     try {
@@ -2148,7 +2207,6 @@ function updatePlayersDisplay(dayNumber) {
     }
 }
 
-// GÉNÉRATION DES MATCHS (Hub Central)
 function generateMatchesForDay(dayNumber) {
     // Si pas de paramètre, utiliser la journée courante
     if (!dayNumber) {
@@ -2157,6 +2215,12 @@ function generateMatchesForDay(dayNumber) {
     
     const dayData = championship.days[dayNumber];
     if (!dayData) return;
+    
+    let reportDetails = {
+        totalNewMatches: 0,
+        totalRematches: 0,
+        divisions: {}
+    };
     
     for (let division = 1; division <= 3; division++) {
         const divisionPlayers = [...dayData.players[division]];
@@ -2168,77 +2232,107 @@ function generateMatchesForDay(dayNumber) {
             continue;
         }
         
+        // IMPORTANT : Réinitialiser les matchs existants
         dayData.matches[division] = [];
         
-        // Collecter TOUS les matchs déjà joués dans toutes les journées précédentes
-        const matchHistory = {};  // Compte combien de fois chaque paire s'est rencontrée
+        // === SYSTÈME ANTI-RÉPÉTITION AMÉLIORÉ ===
         
-        // Initialiser le compteur pour toutes les paires possibles
+        // 1. Collecter l'historique COMPLET des matchs de TOUTES les journées
+        const matchHistory = new Map(); // Utiliser Map pour plus d'efficacité
+        
+        // Initialiser avec 0 pour toutes les paires possibles
         for (let i = 0; i < divisionPlayers.length; i++) {
             for (let j = i + 1; j < divisionPlayers.length; j++) {
-                const key = [divisionPlayers[i], divisionPlayers[j]].sort().join(' vs ');
-                matchHistory[key] = 0;
+                const key = [divisionPlayers[i], divisionPlayers[j]].sort().join('|vs|');
+                matchHistory.set(key, 0);
             }
         }
         
-        // Compter les matchs déjà joués
-        for (let prevDay = 1; prevDay < dayNumber; prevDay++) {
-            if (championship.days[prevDay] && championship.days[prevDay].matches[division]) {
-                championship.days[prevDay].matches[division].forEach(match => {
-                    // Vérifier si les deux joueurs sont présents dans cette journée
-                    if (divisionPlayers.includes(match.player1) && divisionPlayers.includes(match.player2)) {
-                        const key = [match.player1, match.player2].sort().join(' vs ');
-                        if (matchHistory[key] !== undefined) {
-                            matchHistory[key]++;
-                        }
+        // 2. Compter TOUS les matchs déjà joués dans TOUTES les journées
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+            
+            // Ne pas compter les matchs de la journée actuelle (on les régénère)
+            if (dayNum !== dayNumber && 
+                championship.days[dayNum] && 
+                championship.days[dayNum].matches[division]) {
+                
+                championship.days[dayNum].matches[division].forEach(match => {
+                    // Vérifier que les deux joueurs sont dans la division actuelle
+                    if (divisionPlayers.includes(match.player1) && 
+                        divisionPlayers.includes(match.player2)) {
+                        
+                        const key = [match.player1, match.player2].sort().join('|vs|');
+                        const currentCount = matchHistory.get(key) || 0;
+                        matchHistory.set(key, currentCount + 1);
                     }
                 });
             }
-        }
+        });
         
-        // Créer toutes les paires possibles avec leur priorité
+        // 3. Créer toutes les paires possibles avec leur priorité
         const possibleMatches = [];
         for (let i = 0; i < divisionPlayers.length; i++) {
             for (let j = i + 1; j < divisionPlayers.length; j++) {
                 const player1 = divisionPlayers[i];
                 const player2 = divisionPlayers[j];
-                const key = [player1, player2].sort().join(' vs ');
+                const key = [player1, player2].sort().join('|vs|');
+                const timesPlayed = matchHistory.get(key) || 0;
                 
                 possibleMatches.push({
                     player1: player1,
                     player2: player2,
-                    timesPlayed: matchHistory[key] || 0,
-                    key: key
+                    timesPlayed: timesPlayed,
+                    priority: timesPlayed === 0 ? 0 : timesPlayed + 10, // Priorité 0 pour matchs jamais joués
+                    key: key,
+                    randomOrder: Math.random() // Pour mélanger les matchs de même priorité
                 });
             }
         }
         
-        // Trier par priorité : d'abord ceux qui ne se sont jamais rencontrés, puis par nombre de rencontres
-        possibleMatches.sort((a, b) => a.timesPlayed - b.timesPlayed);
+        // 4. Trier par priorité : matchs jamais joués d'abord
+        possibleMatches.sort((a, b) => {
+            if (a.priority !== b.priority) return a.priority - b.priority;
+            return a.randomOrder - b.randomOrder; // Mélanger si même priorité
+        });
         
-        // Générer les matchs pour cette journée
-        const playersMatchCount = {}; // Compte combien de matchs chaque joueur a dans cette journée
-        divisionPlayers.forEach(p => playersMatchCount[p] = 0);
+        // 5. Logging pour debug
+        console.log(`\n=== Division ${division} - Journée ${dayNumber} ===`);
+        console.log(`Joueurs: ${divisionPlayers.length}`);
+        console.log(`Matchs possibles: ${possibleMatches.length}`);
+        console.log(`Matchs jamais joués: ${possibleMatches.filter(m => m.timesPlayed === 0).length}`);
+        console.log(`Matchs déjà joués 1 fois: ${possibleMatches.filter(m => m.timesPlayed === 1).length}`);
+        console.log(`Matchs déjà joués 2+ fois: ${possibleMatches.filter(m => m.timesPlayed >= 2).length}`);
         
-        const targetMatchesPerPlayer = 4; // Essayer de donner 4 matchs à chaque joueur
-        const maxMatches = Math.floor((divisionPlayers.length * targetMatchesPerPlayer) / 2);
+        // 6. Générer les matchs pour cette journée
+        const playersMatchCount = new Map();
+        divisionPlayers.forEach(p => playersMatchCount.set(p, 0));
         
-        // Sélectionner les matchs en prioritisant :
-        // 1. Les matchs jamais joués
-        // 2. L'équilibre du nombre de matchs par joueur
+        const targetMatchesPerPlayer = 4; // Objectif : 4 matchs par joueur
+        const maxTotalMatches = Math.floor((divisionPlayers.length * targetMatchesPerPlayer) / 2);
+        
+        // Organiser par tours
+        const matchesByTour = { 1: [], 2: [], 3: [], 4: [] };
+        const usedMatches = new Set();
+        
+        // 7. Sélection des matchs avec algorithme amélioré
         for (let tour = 1; tour <= 4; tour++) {
-            const tourMatches = [];
             const playersInThisTour = new Set();
             
             for (const matchPair of possibleMatches) {
-                // Vérifier si les joueurs sont disponibles pour ce tour
+                // Skip si déjà utilisé
+                if (usedMatches.has(matchPair.key)) continue;
+                
+                // Vérifier disponibilité des joueurs
                 if (!playersInThisTour.has(matchPair.player1) && 
-                    !playersInThisTour.has(matchPair.player2) &&
-                    playersMatchCount[matchPair.player1] < targetMatchesPerPlayer &&
-                    playersMatchCount[matchPair.player2] < targetMatchesPerPlayer) {
+                    !playersInThisTour.has(matchPair.player2)) {
                     
-                    // Priorité aux matchs jamais joués
-                    if (matchPair.timesPlayed === 0 || dayData.matches[division].length < maxMatches) {
+                    const p1Count = playersMatchCount.get(matchPair.player1) || 0;
+                    const p2Count = playersMatchCount.get(matchPair.player2) || 0;
+                    
+                    // Vérifier que les joueurs n'ont pas trop de matchs
+                    if (p1Count < targetMatchesPerPlayer && p2Count < targetMatchesPerPlayer) {
+                        
                         const matchData = {
                             player1: matchPair.player1,
                             player2: matchPair.player2,
@@ -2250,80 +2344,80 @@ function generateMatchesForDay(dayNumber) {
                             ],
                             completed: false,
                             winner: null,
-                            isRematch: matchPair.timesPlayed > 0 // Marqueur pour identifier les revanches
+                            timesPlayedBefore: matchPair.timesPlayed,
+                            isRematch: matchPair.timesPlayed > 0
                         };
                         
-                        tourMatches.push(matchData);
+                        matchesByTour[tour].push(matchData);
                         playersInThisTour.add(matchPair.player1);
                         playersInThisTour.add(matchPair.player2);
-                        playersMatchCount[matchPair.player1]++;
-                        playersMatchCount[matchPair.player2]++;
+                        playersMatchCount.set(matchPair.player1, p1Count + 1);
+                        playersMatchCount.set(matchPair.player2, p2Count + 1);
+                        usedMatches.add(matchPair.key);
                         
-                        // Marquer ce match comme "utilisé"
-                        matchPair.timesPlayed++;
+                        // Compter pour le rapport
+                        if (matchPair.timesPlayed === 0) {
+                            reportDetails.totalNewMatches++;
+                        } else {
+                            reportDetails.totalRematches++;
+                        }
                     }
                 }
+                
+                // Arrêter si on a assez de matchs pour ce tour
+                if (matchesByTour[tour].length >= Math.ceil(divisionPlayers.length / 2)) {
+                    break;
+                }
             }
-            
-            // Ajouter les matchs de ce tour
-            dayData.matches[division].push(...tourMatches);
         }
         
-        // Mélanger l'ordre des matchs dans chaque tour pour plus de variété
-        const matchesByTour = {};
-        dayData.matches[division].forEach(match => {
-            if (!matchesByTour[match.tour]) matchesByTour[match.tour] = [];
-            matchesByTour[match.tour].push(match);
-        });
-        
-        dayData.matches[division] = [];
+        // 8. Compiler tous les matchs
         for (let tour = 1; tour <= 4; tour++) {
-            if (matchesByTour[tour]) {
-                dayData.matches[division].push(...shuffleArray(matchesByTour[tour]));
-            }
+            dayData.matches[division].push(...matchesByTour[tour]);
         }
+        
+        // Statistiques pour le rapport
+        reportDetails.divisions[division] = {
+            players: divisionPlayers.length,
+            newMatches: dayData.matches[division].filter(m => !m.isRematch).length,
+            rematches: dayData.matches[division].filter(m => m.isRematch).length,
+            total: dayData.matches[division].length
+        };
     }
     
+    // Mise à jour et sauvegarde
     updateMatchesDisplay(dayNumber);
     updateStats(dayNumber);
-    saveToLocalStorage();
+    saveToLocalStorage(); // IMPORTANT : Sauvegarder après génération
     
-    // Rapport détaillé avec statistiques
+    // Rapport détaillé amélioré
     let summary = `✅ Matchs générés pour la Journée ${dayNumber} !\n\n`;
-    let totalNewMatches = 0;
-    let totalRematches = 0;
     
     for (let division = 1; division <= 3; division++) {
-        if (dayData.players[division].length > 0) {
-            const matches = dayData.matches[division];
-            const newMatches = matches.filter(m => !m.isRematch).length;
-            const rematches = matches.filter(m => m.isRematch).length;
-            
-            totalNewMatches += newMatches;
-            totalRematches += rematches;
-            
-            if (matches.length > 0) {
-                summary += `Division ${division}: ${dayData.players[division].length} joueurs\n`;
-                summary += `  → ${newMatches} nouveaux matchs`;
-                if (rematches > 0) {
-                    summary += ` + ${rematches} revanches`;
-                }
-                summary += '\n';
+        if (reportDetails.divisions[division]) {
+            const divStats = reportDetails.divisions[division];
+            summary += `Division ${division}: ${divStats.players} joueurs\n`;
+            summary += `  → ${divStats.newMatches} matchs INÉDITS`;
+            if (divStats.rematches > 0) {
+                summary += ` + ${divStats.rematches} revanches`;
             }
+            summary += ` = ${divStats.total} matchs total\n`;
         }
     }
     
-    if (totalNewMatches > 0 || totalRematches > 0) {
-        summary += `\n💡 Système intelligent : Priorité aux matchs inédits !`;
-        if (totalRematches > 0) {
-            summary += `\n⚠️ Quelques revanches nécessaires pour équilibrer les tours.`;
-        }
-    } else {
-        summary += `\n⚠️ Aucun match généré - Vérifiez les joueurs.`;
+    summary += `\n📊 Résumé global :\n`;
+    summary += `• ${reportDetails.totalNewMatches} nouveaux matchs\n`;
+    if (reportDetails.totalRematches > 0) {
+        summary += `• ${reportDetails.totalRematches} revanches (minimisées)\n`;
     }
+    summary += `\n💡 L'algorithme a priorisé les matchs jamais joués !`;
     
     alert(summary);
+    
+    // Log détaillé dans la console pour debug
+    console.log("Génération terminée:", reportDetails);
 }
+
         
 function shuffleArray(array) {
     const shuffled = [...array];
@@ -2503,6 +2597,7 @@ function toggleTour(dayNumber, division, tour) {
 
 function updateSetScore(dayNumber, division, matchIndex, setIndex, scoreField, value) {
     championship.days[dayNumber].matches[division][matchIndex].sets[setIndex][scoreField] = value;
+    saveToLocalStorage(); 
 }
 
 function handleEnterKey(event, dayNumber, division, matchIndex) {
@@ -2517,6 +2612,8 @@ function handleEnterKey(event, dayNumber, division, matchIndex) {
         const isNowCompleted = championship.days[dayNumber].matches[division][matchIndex].completed;
         
         updateSingleMatchDisplay(dayNumber, division, matchIndex);
+        
+        // AJOUT IMPORTANT : Toujours sauvegarder après mise à jour
         saveToLocalStorage();
         
         const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
@@ -2538,6 +2635,9 @@ function handleEnterKey(event, dayNumber, division, matchIndex) {
                     matchElement.style.borderColor = '#27ae60';
                 }
             }, 200);
+            
+            // Notification de match terminé
+            showNotification(`Match terminé: ${championship.days[dayNumber].matches[division][matchIndex].winner} gagne!`, 'success');
         }
     }
 }
@@ -3322,6 +3422,9 @@ function exportGeneralRanking() {
     
     showNotification('Classement général exporté !', 'success');
 }
+
+    // Pour analyser les répétitions (utilisable dans la console)
+window.analyzeMatchRepetitions = analyzeMatchRepetitions;
     </script>
 </body>
 </html>
