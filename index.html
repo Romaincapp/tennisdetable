@@ -2150,6 +2150,11 @@ function updatePlayersDisplay(dayNumber) {
 
 // GÉNÉRATION DES MATCHS (Hub Central)
 function generateMatchesForDay(dayNumber) {
+    // Si pas de paramètre, utiliser la journée courante
+    if (!dayNumber) {
+        dayNumber = championship.currentDay;
+    }
+    
     const dayData = championship.days[dayNumber];
     if (!dayData) return;
     
