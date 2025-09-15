@@ -2477,10 +2477,13 @@ function updateMatchesDisplay(dayNumber) {
         
         container.innerHTML = html;
         
+        // Rendre visible le premier tour de chaque division
         setTimeout(() => {
-            const firstTour = document.getElementById(`tour${dayNumber}-${division}-1`);
-            if (firstTour) {
-                firstTour.classList.add('active');
+        for (let div = 1; div <= 3; div++) {
+        const firstTour = document.getElementById(`tour${dayNumber}-${div}-1`);
+        if (firstTour) {
+            firstTour.classList.add('active');
+                }
             }
         }, 100);
     }
