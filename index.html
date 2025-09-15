@@ -3422,9 +3422,46 @@ function exportGeneralRanking() {
     
     showNotification('Classement général exporté !', 'success');
 }
+function analyzeMatchRepetitions() {
+    console.log("\n=== ANALYSE DES RÉPÉTITIONS DE MATCHS ===");
+    
+    for (let division = 1; division <= 3; division++) {
+        console.log(`\n--- Division ${division} ---`);
+        
+        const allMatches = new Map();
+        
+        // Collecter tous les matchs de toutes les journées
+        Object.keys(championship.days).forEach(dayNum => {
+            const day = championship.days[dayNum];
+            if (day.matches[division]) {
+                day.matches[division].forEach(match => {
+                    const key = [match.player1, match.player2].sort().join(' vs ');
+                    if (!allMatches.has(key)) {
+                        allMatches.set(key, []);
+                    }
+                    allMatches.get(key).push(`J${dayNum}`);
+                });
+            }
+        });
+        
+        let repetitions = 0;
+        allMatches.forEach((days, matchKey) => {
+            if (days.length > 1) {
+                console.log(`⚠️ "${matchKey}" joué ${days.length} fois: ${days.join(', ')}`);
+                repetitions++;
+            }
+        });
+        
+        if (repetitions === 0) {
+            console.log("✅ Aucune répétition détectée !");
+        } else {
+            console.log(`Total: ${repetitions} matchs répétés`);
+        }
+    }
+}
 
-    // Pour analyser les répétitions (utilisable dans la console)
 window.analyzeMatchRepetitions = analyzeMatchRepetitions;
+    
     </script>
 </body>
 </html>
