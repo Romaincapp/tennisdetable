@@ -1186,8 +1186,10 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
+        console.log("Script démarré");
+        
         // STRUCTURE DE DONNÉES CHAMPIONNAT
 let championship = {
     currentDay: 1,
@@ -1199,21 +1201,9 @@ let championship = {
     }
 };
 
+console.log("Variables globales créées");
+
 let importedChampionshipData = null;
-
-// INITIALISATION
-document.addEventListener('DOMContentLoaded', function() {
-    setupEventListeners();
-    loadFromLocalStorage();
-    initializeDivisionsDisplay();
-    updateTabsDisplay();
-    updateDaySelectors();
-    startAutoSave();
-
-    window.addEventListener('beforeunload', function(e) {
-        saveToLocalStorage();
-    });
-});
 
 // FONCTION SHOWNOTIFICATION (DÉFINIE AVANT TOUT)
 function showNotification(message, type = 'info') {
@@ -1264,6 +1254,8 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+console.log("showNotification définie");
+
 // SAUVEGARDE ET CHARGEMENT
 function saveToLocalStorage() {
     try {
@@ -1279,6 +1271,8 @@ function saveToLocalStorage() {
         return false;
     }
 }
+
+console.log("saveToLocalStorage définie");
 
 function loadFromLocalStorage() {
     try {
@@ -1318,6 +1312,8 @@ function loadFromLocalStorage() {
     }
 }
 
+console.log("loadFromLocalStorage définie");
+
 function startAutoSave() {
     setInterval(() => {
         if (saveToLocalStorage()) {
@@ -1325,6 +1321,27 @@ function startAutoSave() {
         }
     }, 30000); // 30 secondes
 }
+
+console.log("startAutoSave définie");
+
+// INITIALISATION
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM chargé, début initialisation");
+    setupEventListeners();
+    loadFromLocalStorage();
+    initializeDivisionsDisplay();
+    updateTabsDisplay();
+    updateDaySelectors();
+    startAutoSave();
+
+    window.addEventListener('beforeunload', function(e) {
+        saveToLocalStorage();
+    });
+    
+    console.log("Initialisation terminée");
+});
+
+console.log("Event listener DOM ajouté");
 
 function setupEventListeners() {
     const fileInput = document.getElementById('fileInput');
@@ -1654,6 +1671,31 @@ function addPlayer() {
 function handleFileImport(event) {
     const file = event.target.files[0];
     if (!file) return;
+    
+    // Vérifier si XLSX est disponible
+    if (typeof XLSX === 'undefined') {
+        alert('La bibliothèque XLSX n\'est pas chargée. Seuls les fichiers CSV sont supportés pour le moment.');
+        
+        // Traiter seulement les CSV
+        if (!file.name.endsWith('.csv')) {
+            alert('Veuillez utiliser un fichier CSV (.csv) pour l\'instant.');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                const data = parseCSV(text);
+                const targetDay = parseInt(document.getElementById('fileTargetDay').value);
+                importPlayersFromData(data, targetDay);
+            } catch (error) {
+                alert('Erreur lors de la lecture du fichier : ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+        return;
+    }
     
     const targetDay = parseInt(document.getElementById('fileTargetDay').value);
     
