@@ -1529,45 +1529,43 @@ function updateTabsDisplay() {
 }
 
 // SAUVEGARDE ET LOCALSTORAGE
-function saveToLocalStorage() {
+function loadFromLocalStorage() {
     try {
-        const championshipData = {
-            version: "2.0",
-            timestamp: new Date().toISOString(),
-            championship: championship
-        };
-        
-        const dataStr = JSON.stringify(championshipData);
-        localStorage.setItem('tennisTableChampionship', dataStr);
-        
-        // Vérification que la sauvegarde a réussi
-        const saved = localStorage.getItem('tennisTableChampionship');
-        if (saved) {
-            console.log(`✅ Sauvegarde réussie (${(dataStr.length / 1024).toFixed(2)} KB) à ${new Date().toLocaleTimeString()}`);
-            return true;
-        } else {
-            console.error('❌ Échec de la sauvegarde');
-            return false;
+        const savedData = localStorage.getItem('tennisTableChampionship');
+        const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
+
+        if (savedData) {
+            const championshipData = JSON.parse(savedData);
+            championship = championshipData.championship || championship;
+
+            updateTabsDisplay();
+            initializeAllDaysContent();
+            switchTab(championship.currentDay);
+
+            console.log('✅ Championnat restauré depuis localStorage');
+            showNotification('Championnat restauré automatiquement', 'success');
+
+        } else if (oldData) {
+            // Migration depuis l'ancienne version
+            const oldTournamentData = JSON.parse(oldData);
+            championship.days[1] = {
+                players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
+                matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
+            };
+
+            localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
+            saveToLocalStorage(); // Sauver dans le nouveau format
+
+            updateTabsDisplay();
+            initializeAllDaysContent();
+            switchTab(1);
+
+            showNotification('Données migrées vers le nouveau format !', 'info');
         }
-        
     } catch (error) {
-        console.error('❌ Erreur sauvegarde localStorage:', error);
-        
-        // Si quota dépassé, proposer de nettoyer
-        if (error.name === 'QuotaExceededError') {
-            if (confirm('Espace de stockage insuffisant. Voulez-vous exporter vos données avant de nettoyer ?')) {
-                exportChampionship();
-            }
-        }
-        
-        showNotification('Erreur de sauvegarde', 'warning');
-        return false;
+        console.error('❌ Erreur chargement localStorage:', error);
     }
 }
-
-// ============================================
-// AJOUT : Auto-save périodique toutes les 30 secondes
-// ============================================
 
 // 5. Sauvegarde automatique périodique
 let autoSaveInterval = null;
@@ -1603,18 +1601,18 @@ function loadFromLocalStorage() {
     try {
         const savedData = localStorage.getItem('tennisTableChampionship');
         const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
-        
+
         if (savedData) {
             const championshipData = JSON.parse(savedData);
             championship = championshipData.championship || championship;
-            
+
             updateTabsDisplay();
             initializeAllDaysContent();
             switchTab(championship.currentDay);
-            
+
             console.log('✅ Championnat restauré depuis localStorage');
             showNotification('Championnat restauré automatiquement', 'success');
-            
+
         } else if (oldData) {
             // Migration depuis l'ancienne version
             const oldTournamentData = JSON.parse(oldData);
@@ -1622,21 +1620,20 @@ function loadFromLocalStorage() {
                 players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
                 matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
             };
-            
+
             localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
             saveToLocalStorage(); // Sauver dans le nouveau format
-            
+
             updateTabsDisplay();
             initializeAllDaysContent();
             switchTab(1);
-            
+
             showNotification('Données migrées vers le nouveau format !', 'info');
         }
     } catch (error) {
         console.error('❌ Erreur chargement localStorage:', error);
     }
 }
-
 function initializeAllDaysContent() {
     Object.keys(championship.days).forEach(dayNumber => {
         const dayNum = Number(dayNumber);
