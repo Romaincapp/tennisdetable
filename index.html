@@ -3313,3 +3313,54 @@ function clearAllData() {
         }
     }
 }
+
+// S'assurer que toutes les fonctions sont dans le scope global
+window.showBulkInput = showBulkInput;
+window.closeBulkModal = closeBulkModal;
+window.addBulkPlayers = addBulkPlayers;
+window.addPlayer = addPlayer;
+window.generateMatchesForDay = generateMatchesForDay;
+window.updateRankings = updateRankings;
+window.exportChampionship = exportChampionship;
+window.showImportModal = showImportModal;
+window.clearAllData = clearAllData;
+window.addNewDay = addNewDay;
+window.switchTab = switchTab;
+window.switchToGeneralRanking = switchToGeneralRanking;
+window.removeDay = removeDay;
+window.removePlayer = removePlayer;
+window.showPlayerDetails = showPlayerDetails;
+window.closePlayerModal = closePlayerModal;
+window.showRankings = showRankings;
+window.showRankingsForDay = showRankingsForDay;
+window.updateGeneralRanking = updateGeneralRanking;
+window.exportGeneralRanking = exportGeneralRanking;
+window.toggleTour = toggleTour;
+window.updateSetScore = updateSetScore;
+window.handleEnterKey = handleEnterKey;
+window.copyPlayersFromPreviousDay = copyPlayersFromPreviousDay;
+window.clearDayData = clearDayData;
+window.updateRankingsForDay = updateRankingsForDay;
+window.showGeneralPlayerDetails = showGeneralPlayerDetails;
+window.closeImportModal = closeImportModal;
+window.processImport = processImport;
+
+// Fonction de débogage pour vérifier que toutes les fonctions sont définies
+function checkFunctions() {
+    const functions = [
+        'showBulkInput', 'addPlayer', 'generateMatchesForDay', 
+        'updateRankings', 'exportChampionship', 'showImportModal', 
+        'clearAllData'
+    ];
+    
+    functions.forEach(funcName => {
+        if (typeof window[funcName] === 'function') {
+            console.log(`✅ ${funcName} est définie`);
+        } else {
+            console.error(`❌ ${funcName} n'est pas définie`);
+        }
+    });
+}
+
+// Appeler la vérification au chargement
+setTimeout(checkFunctions, 1000);
