@@ -2070,14 +2070,15 @@ try {
                           `• ${stats.totalPlayers} joueurs uniques\n` +
                           `• ${stats.totalMatches} matchs\n` +
                           `• Tous les scores et classements\n` +
-                          `• La sauvegarde automatique\n\n` +
+                          `• Toutes les données en cache (localStorage)\n\n` +
                           `Cette action est IRRÉVERSIBLE !\n\n` +
                           `Êtes-vous vraiment sûr ?`;
         
         if (confirm(confirmMsg)) {
-            const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUT le championnat ?');
+            const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUT le championnat ET vider le cache ?');
             
             if (doubleConfirm) {
+                // Réinitialiser les données en mémoire
                 championship = {
                     currentDay: 1,
                     days: {
@@ -2088,14 +2089,72 @@ try {
                     }
                 };
                 
-                localStorage.removeItem('tennisTableChampionship');
+                // NETTOYER COMPLÈTEMENT LE LOCALSTORAGE
+                try {
+                    // Supprimer la clé principale
+                    localStorage.removeItem('tennisTableChampionship');
+                    
+                    // Supprimer toutes les clés liées au tennis de table (au cas où)
+                    const keysToRemove = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && (key.includes('tennis') || key.includes('championship') || key.includes('tournoi'))) {
+                            keysToRemove.push(key);
+                        }
+                    }
+                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                    
+                    console.log("✅ LocalStorage complètement nettoyé");
+                } catch (error) {
+                    console.warn("⚠️ Erreur lors du nettoyage du localStorage:", error);
+                }
                 
+                // Forcer le rechargement de l'interface
+                try {
+                    // Supprimer tous les onglets existants (sauf J1 et général)
+                    const tabsContainer = document.getElementById('tabs');
+                    if (tabsContainer) {
+                        const tabsToRemove = tabsContainer.querySelectorAll('.tab:not(.general-ranking):not(.add-day-btn)');
+                        tabsToRemove.forEach(tab => {
+                            if (tab.dataset.day && parseInt(tab.dataset.day) > 1) {
+                                tab.remove();
+                            }
+                        });
+                    }
+                    
+                    // Supprimer tout le contenu des journées > 1
+                    document.querySelectorAll('[id^="day-"]').forEach(dayContent => {
+                        const dayId = dayContent.id.replace('day-', '');
+                        if (parseInt(dayId) > 1) {
+                            dayContent.remove();
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.warn("⚠️ Erreur lors du nettoyage de l'interface:", error);
+                }
+                
+                // Réinitialiser complètement l'affichage
                 updateTabsDisplay();
                 updateDaySelectors();
-                initializeAllDaysContent();
+                initializeDivisionsDisplay(1);
+                updatePlayersDisplay(1);
+                updateMatchesDisplay(1);
+                updateStats(1);
                 switchTab(1);
                 
-                showNotification('Championnat réinitialisé', 'warning');
+                // Cacher les classements
+                const rankingsEl = document.getElementById('rankings-1');
+                if (rankingsEl) rankingsEl.style.display = 'none';
+                
+                showNotification('Championnat complètement réinitialisé - Cache vidé !', 'success');
+                
+                // Option pour recharger la page complètement
+                setTimeout(() => {
+                    if (confirm('Voulez-vous recharger la page pour une remise à zéro complète ?')) {
+                        location.reload();
+                    }
+                }, 2000);
             }
         }
     }
