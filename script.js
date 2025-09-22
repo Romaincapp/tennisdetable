@@ -2375,7 +2375,255 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
             });
         }
     }
+function exportGeneralRankingToHTML() {
+    console.log("Début de la fonction exportGeneralRankingToHTML");
 
+    const generalRanking = calculateGeneralRanking();
+    console.log("Classement général calculé:", generalRanking);
+
+    const generalStats = calculateGeneralStats();
+    console.log("Statistiques générales calculées:", generalStats);
+
+    if (!generalRanking.hasData) {
+        console.log("Aucun classement général disponible pour l'export HTML");
+        alert('Aucun classement général disponible pour l\'export HTML');
+        return;
+    }
+
+    // Créer le contenu HTML
+    let htmlContent = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Classement Général du Championnat</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    padding: 20px;
+                }
+                .container {
+                    max-width: 1400px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                    overflow: hidden;
+                }
+                .header {
+                    background: linear-gradient(135deg, #2c3e50, #34495e);
+                    color: white;
+                    padding: 25px;
+                    text-align: center;
+                }
+                .header h1 {
+                    font-size: 2.5rem;
+                    margin-bottom: 10px;
+                }
+                .section {
+                    margin-bottom: 40px;
+                    background: #f8f9fa;
+                    border-radius: 12px;
+                    padding: 25px;
+                    border-left: 5px solid #3498db;
+                }
+                .section h2 {
+                    color: #2c3e50;
+                    margin-bottom: 20px;
+                    font-size: 1.5rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .stats {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 20px;
+                    margin-bottom: 30px;
+                }
+                .stat-card {
+                    background: white;
+                    padding: 20px;
+                    border-radius: 12px;
+                    text-align: center;
+                    border-left: 4px solid #f39c12;
+                    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+                }
+                .stat-number {
+                    font-size: 2.5rem;
+                    font-weight: bold;
+                    color: #f39c12;
+                    margin-bottom: 5px;
+                }
+                .stat-label {
+                    color: #7f8c8d;
+                    font-weight: 500;
+                }
+                .division {
+                    background: white;
+                    border-radius: 12px;
+                    padding: 25px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    border-top: 4px solid;
+                    margin-bottom: 20px;
+                }
+                .division-1 { border-top-color: #e74c3c; }
+                .division-2 { border-top-color: #f39c12; }
+                .division-3 { border-top-color: #27ae60; }
+                .division h3 {
+                    margin-bottom: 20px;
+                    font-size: 1.3rem;
+                    text-align: center;
+                }
+                .ranking-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 15px;
+                }
+                .ranking-table th, .ranking-table td {
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #ecf0f1;
+                }
+                .ranking-table th {
+                    background: #f8f9fa;
+                    font-weight: 600;
+                    color: #2c3e50;
+                }
+                .ranking-table tr:hover {
+                    background: #f8f9fa;
+                }
+                .rank-position {
+                    font-weight: bold;
+                    color: #3498db;
+                    width: 50px;
+                }
+                .rank-gold { color: #f39c12; }
+                .rank-silver { color: #95a5a6; }
+                .rank-bronze { color: #e67e22; }
+                .footer {
+                    text-align: center;
+                    padding: 20px;
+                    color: #7f8c8d;
+                    font-size: 14px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT</h1>
+                    <p>Généré le ${new Date().toLocaleDateString('fr-FR', {
+                        year: 'numeric', month: 'long', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    })}</p>
+                </div>
+                <div class="section">
+                    <h2>📊 STATISTIQUES DU CHAMPIONNAT</h2>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-number">${generalStats.totalDays}</div>
+                            <div class="stat-label">Journées disputées</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${generalStats.totalPlayers}</div>
+                            <div class="stat-label">Joueurs uniques</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${generalStats.totalMatches}</div>
+                            <div class="stat-label">Matchs programmés</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${generalStats.completedMatches}</div>
+                            <div class="stat-label">Matchs terminés</div>
+                        </div>
+                    </div>
+                </div>
+    `;
+
+    // Ajouter les classements par division
+    for (let division = 1; division <= 3; division++) {
+        if (generalRanking.divisions[division].length === 0) continue;
+
+        const divisionIcon = division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉';
+        htmlContent += `
+            <div class="division division-${division}">
+                <h3>${divisionIcon} DIVISION ${division}</h3>
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>Rang</th>
+                            <th>Joueur</th>
+                            <th>Points</th>
+                            <th>Journées</th>
+                            <th>V/D</th>
+                            <th>% Vict.</th>
+                            <th>Sets</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        generalRanking.divisions[division].forEach((player, index) => {
+            const rankClass = index < 3 ? `rank-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'}` : '';
+            htmlContent += `
+                <tr>
+                    <td class="rank-position ${rankClass}">${index + 1}</td>
+                    <td>${player.name}</td>
+                    <td>${player.totalPoints}</td>
+                    <td>${player.daysPlayed}</td>
+                    <td>${player.totalWins}/${player.totalLosses}</td>
+                    <td>${player.avgWinRate}%</td>
+                    <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
+                </tr>
+            `;
+        });
+
+        htmlContent += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Ajouter le pied de page
+    htmlContent += `
+                <div class="footer">
+                    <p>Championnat Tennis de Table - Gestion Esenca Sport</p>
+                    <p>Système de points: Victoire = 3pts, Défaite = 1pt</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    // Créer un blob et une URL pour le téléchargement
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    // Créer un lien de téléchargement
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Classement_General_${new Date().toISOString().slice(0,10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+
+    // Nettoyer
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showNotification('Classement général exporté en HTML !', 'success');
+    console.log("Fin de la fonction exportGeneralRankingToHTML");
+}
+
+window.exportGeneralRanking = exportGeneralRanking;
+window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
+window.exportGeneralRankingToHTML = exportGeneralRankingToHTML;
     // INITIALISATION AU CHARGEMENT
     document.addEventListener('DOMContentLoaded', function() {
         console.log("DOM chargé, début initialisation");
