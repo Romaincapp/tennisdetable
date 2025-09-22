@@ -1528,8 +1528,7 @@ function updateTabsDisplay() {
     });
 }
 
-// SAUVEGARDE ET LOCALSTORAGE
-function loadFromLocalStorage() {
+
     try {
         const savedData = localStorage.getItem('tennisTableChampionship');
         const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
@@ -1565,7 +1564,7 @@ function loadFromLocalStorage() {
     } catch (error) {
         console.error('❌ Erreur chargement localStorage:', error);
     }
-}
+
 
 // 5. Sauvegarde automatique périodique
 let autoSaveInterval = null;
@@ -1597,43 +1596,120 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// 1. Modification de la fonction loadFromLocalStorage
 function loadFromLocalStorage() {
     try {
         const savedData = localStorage.getItem('tennisTableChampionship');
-        const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
 
         if (savedData) {
             const championshipData = JSON.parse(savedData);
             championship = championshipData.championship || championship;
 
+            // Vérification des données chargées
+            console.log('Données chargées:', championship);
+
+            // Reconstruire l'interface complète
             updateTabsDisplay();
             initializeAllDaysContent();
-            switchTab(championship.currentDay);
+            switchTab(championship.currentDay || 1);
 
-            console.log('✅ Championnat restauré depuis localStorage');
-            showNotification('Championnat restauré automatiquement', 'success');
+            // Vérification visuelle après 1 seconde
+            setTimeout(() => {
+                if (document.querySelectorAll('.player-card').length === 0) {
+                    console.warn('Aucun joueur affiché - Reconstruction forcée');
+                    initializeAllDaysContent();
+                }
+            }, 1000);
 
-        } else if (oldData) {
-            // Migration depuis l'ancienne version
-            const oldTournamentData = JSON.parse(oldData);
-            championship.days[1] = {
-                players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
-                matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
-            };
-
-            localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
-            saveToLocalStorage(); // Sauver dans le nouveau format
-
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(1);
-
-            showNotification('Données migrées vers le nouveau format !', 'info');
+            console.log('✅ Interface reconstruite avec succès');
+        } else {
+            console.log('Aucune donnée trouvée - Initialisation par défaut');
+            initializeDefaultChampionship();
         }
     } catch (error) {
-        console.error('❌ Erreur chargement localStorage:', error);
+        console.error('Erreur chargement localStorage:', error);
+        initializeDefaultChampionship();
     }
 }
+
+// 2. Ajout d'une fonction de reconstruction manuelle
+function rebuildInterface() {
+    console.log('Reconstruction manuelle de l\'interface...');
+    updateTabsDisplay();
+    initializeAllDaysContent();
+    switchTab(championship.currentDay || 1);
+}
+
+// 3. Modification de l'initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    loadFromLocalStorage();
+
+    // Bouton de reconstruction manuelle
+    const rebuildButton = document.createElement('button');
+    rebuildButton.textContent = 'Reconstruire l\'interface';
+    rebuildButton.style.position = 'fixed';
+    rebuildButton.style.bottom = '20px';
+    rebuildButton.style.right = '20px';
+    rebuildButton.style.zIndex = '1000';
+    rebuildButton.addEventListener('click', rebuildInterface);
+    document.body.appendChild(rebuildButton);
+});
+    try {
+        const savedData = localStorage.getItem('tennisTableChampionship');
+
+        if (savedData) {
+            const championshipData = JSON.parse(savedData);
+            championship = championshipData.championship || championship;
+
+            // Vérification des données chargées
+            console.log('Données chargées:', championship);
+
+            // Reconstruire l'interface complète
+            updateTabsDisplay();
+            initializeAllDaysContent();
+            switchTab(championship.currentDay || 1);
+
+            // Vérification visuelle après 1 seconde
+            setTimeout(() => {
+                if (document.querySelectorAll('.player-card').length === 0) {
+                    console.warn('Aucun joueur affiché - Reconstruction forcée');
+                    initializeAllDaysContent();
+                }
+            }, 1000);
+
+            console.log('✅ Interface reconstruite avec succès');
+        } else {
+            console.log('Aucune donnée trouvée - Initialisation par défaut');
+            initializeDefaultChampionship();
+        }
+    } catch (error) {
+        console.error('Erreur chargement localStorage:', error);
+        initializeDefaultChampionship();
+    }
+}
+
+// 2. Ajout d'une fonction de reconstruction manuelle
+function rebuildInterface() {
+    console.log('Reconstruction manuelle de l\'interface...');
+    updateTabsDisplay();
+    initializeAllDaysContent();
+    switchTab(championship.currentDay || 1);
+}
+
+// 3. Modification de l'initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    loadFromLocalStorage();
+
+    // Bouton de reconstruction manuelle
+    const rebuildButton = document.createElement('button');
+    rebuildButton.textContent = 'Reconstruire l\'interface';
+    rebuildButton.style.position = 'fixed';
+    rebuildButton.style.bottom = '20px';
+    rebuildButton.style.right = '20px';
+    rebuildButton.style.zIndex = '1000';
+    rebuildButton.addEventListener('click', rebuildInterface);
+    document.body.appendChild(rebuildButton);
+});
 function initializeAllDaysContent() {
     Object.keys(championship.days).forEach(dayNumber => {
         const dayNum = Number(dayNumber);
