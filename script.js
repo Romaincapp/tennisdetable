@@ -1882,21 +1882,28 @@ try {
       
     
     function exportGeneralRankingToPDF() {
-    console.log("Fonction exportGeneralRankingToPDF appelée");
+    console.log("Début de la fonction exportGeneralRankingToPDF");
+
     if (typeof window.jsPDF === 'undefined') {
         console.error("jsPDF n'est pas chargé correctement");
         alert("jsPDF n'est pas chargé correctement. Veuillez vérifier la console pour plus de détails.");
         return;
     }
+    console.log("jsPDF est chargé correctement");
 
     const generalRanking = calculateGeneralRanking();
+    console.log("Classement général calculé:", generalRanking);
+
     const generalStats = calculateGeneralStats();
+    console.log("Statistiques générales calculées:", generalStats);
 
     if (!generalRanking.hasData) {
+        console.log("Aucun classement général disponible pour l'export PDF");
         alert('Aucun classement général disponible pour l\'export PDF');
         return;
     }
 
+    console.log("Création d'une nouvelle instance de jsPDF");
     const doc = new window.jsPDF();
 
     // Configuration
@@ -1906,7 +1913,10 @@ try {
     const contentWidth = pageWidth - marginLeft - marginRight;
     let yPosition = 20;
 
+    console.log("Configuration de la page terminée");
+
     // HEADER
+    console.log("Ajout de l'en-tête");
     doc.setFontSize(20);
     doc.setTextColor(52, 73, 94); // Bleu foncé
     doc.text('🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT', pageWidth/2, yPosition, { align: 'center' });
@@ -1921,6 +1931,7 @@ try {
     doc.text(`Généré le ${currentDate}`, pageWidth/2, yPosition, { align: 'center' });
 
     // STATISTIQUES GÉNÉRALES
+    console.log("Ajout des statistiques générales");
     yPosition += 20;
     doc.setFontSize(14);
     doc.setTextColor(52, 73, 94);
@@ -1941,6 +1952,7 @@ try {
     });
 
     // CLASSEMENTS PAR DIVISION
+    console.log("Ajout des classements par division");
     yPosition += 10;
     for (let division = 1; division <= 3; division++) {
         if (generalRanking.divisions[division].length === 0) continue;
@@ -2015,6 +2027,7 @@ try {
     }
 
     // FOOTER
+    console.log("Ajout du pied de page");
     if (yPosition > 250) {
         doc.addPage();
         yPosition = 20;
@@ -2026,13 +2039,18 @@ try {
     doc.text(`Système de points: Victoire = 3pts, Défaite = 1pt`, pageWidth/2, yPosition + 4, { align: 'center' });
 
     // Sauvegarde
+    console.log("Sauvegarde du PDF");
     const fileName = `Classement_General_${new Date().toISOString().slice(0,10)}.pdf`;
     doc.save(fileName);
+    console.log("PDF sauvegardé avec le nom:", fileName);
+
     showNotification('Classement général exporté en PDF !', 'success');
+    console.log("Fin de la fonction exportGeneralRankingToPDF");
 }
 
 window.exportGeneralRanking = exportGeneralRanking;
 window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
+
 
     // EXPORT / IMPORT
     function exportChampionship() {
