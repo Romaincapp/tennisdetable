@@ -1884,7 +1884,7 @@ try {
         if (typeof window.jsPDF === 'undefined') {
          console.error("jsPDF n'est pas chargé correctement");
             alert("jsPDF n'est pas chargé correctement. Veuillez vérifier la console pour plus de détails.");
-             return;
+         return;
         }
         
         const generalRanking = calculateGeneralRanking();
