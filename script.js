@@ -1880,10 +1880,11 @@ try {
     }
 
     function exportGeneralRankingToPDF() {
-        // Vérifier si jsPDF est disponible
+         console.log("Fonction exportGeneralRankingToPDF appelée");
         if (typeof window.jsPDF === 'undefined') {
-            alert('❌ Bibliothèque PDF non chargée !\n\nVeuillez ajouter jsPDF au HTML :\n<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>');
-            return;
+         console.error("jsPDF n'est pas chargé correctement");
+            alert("jsPDF n'est pas chargé correctement. Veuillez vérifier la console pour plus de détails.");
+             return;
         }
         
         const generalRanking = calculateGeneralRanking();
