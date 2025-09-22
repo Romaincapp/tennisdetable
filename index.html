@@ -1679,15 +1679,61 @@ function addPlayer() {
 
 // 3. Vérification de la fonction showNotification
 if (typeof showNotification !== 'function') {
-    console.warn('La fonction showNotification n\'est pas définie - Ajout d\'une version de secours');
+    console.warn('La fonction showNotification n\'est pas définie - Ajout d\'une version améliorée');
 
     function showNotification(message, type = 'info') {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-
-        // Version de secours avec alert
-        if (typeof alert === 'function') {
-            alert(`[${type.toUpperCase()}] ${message}`);
+        // Vérification du DOM
+        if (typeof document === 'undefined') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            return;
         }
+
+        // Création de la notification
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+
+        // Style de base
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '15px';
+        notification.style.borderRadius = '5px';
+        notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        notification.style.zIndex = '10000';
+        notification.style.transition = 'all 0.3s ease';
+
+        // Styles par type
+        switch(type) {
+            case 'success':
+                notification.style.backgroundColor = '#4CAF50';
+                notification.style.color = 'white';
+                break;
+            case 'warning':
+                notification.style.backgroundColor = '#FFC107';
+                notification.style.color = 'black';
+                break;
+            case 'error':
+                notification.style.backgroundColor = '#F44336';
+                notification.style.color = 'white';
+                break;
+            default:
+                notification.style.backgroundColor = '#2196F3';
+                notification.style.color = 'white';
+        }
+
+        // Ajout au DOM
+        document.body.appendChild(notification);
+
+        // Animation de disparition
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+
+        // Log pour le débogage
+        console.log(`[NOTIFICATION ${type.toUpperCase()}] ${message}`);
     }
 }
 
@@ -1954,37 +2000,52 @@ function clearAllData() {
 
 // GESTION DES JOUEURS (Hub Central)
 function addPlayer() {
-    const nameInput = document.getElementById('playerName');
-    const divisionSelect = document.getElementById('playerDivision');
-    const targetDaySelect = document.getElementById('targetDay');
-    
-    const name = nameInput.value.trim();
-    const division = parseInt(divisionSelect.value);
-    const targetDay = parseInt(targetDaySelect.value);
-    
+    // Récupération des valeurs (à adapter selon votre implémentation)
+    const name = document.getElementById('playerName').value.trim();
+    const division = parseInt(document.getElementById('playerDivision').value);
+    const targetDay = parseInt(document.getElementById('playerDay').value);
+
+    // Vérification des valeurs
     if (!name) {
-        alert('Veuillez entrer un nom de joueur');
+        showNotification('Veuillez entrer un nom de joueur', 'warning');
         return;
     }
-    
-    if (!championship.days[targetDay]) {
-        championship.days[targetDay] = {
-            players: { 1: [], 2: [], 3: [] },
-            matches: { 1: [], 2: [], 3: [] }
-        };
+
+    if (!division || division < 1 || division > 3) {
+        showNotification('Division invalide', 'error');
+        return;
     }
-    
+
+    if (!targetDay || !championship.days[targetDay]) {
+        showNotification('Journée invalide', 'error');
+        return;
+    }
+
+    // Vérification si le joueur existe déjà
     if (championship.days[targetDay].players[division].includes(name)) {
-        alert(`Ce joueur existe déjà dans la Division ${division} - Journée ${targetDay}`);
+        showNotification(`${name} est déjà inscrit en D${division} - J${targetDay}`, 'warning');
         return;
     }
-    
-    championship.days[targetDay].players[division].push(name);
-    nameInput.value = '';
-    updatePlayersDisplay(targetDay);
-    saveToLocalStorage();
-    
-    showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
+
+    // Ajout du joueur
+    try {
+        championship.days[targetDay].players[division].push(name);
+
+        // Sauvegarde et notification
+        saveToLocalStorage();
+
+        // Notification de succès
+        showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
+
+        // Mise à jour de l'affichage
+        updatePlayersDisplay(targetDay);
+
+        // Réinitialisation du formulaire
+        document.getElementById('playerName').value = '';
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout du joueur:', error);
+        showNotification('Erreur lors de l\'ajout du joueur', 'error');
+    }
 }
 
 function handleFileImport(event) {
