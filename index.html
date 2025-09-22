@@ -958,7 +958,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏆 Championnat Tennis de TableV6</h1>
+            <h1>🏆 Championnat Tennis de Table V6</h1>
             <p>Gestion complète multi-journées avec classement général</p>
         </div>
         
@@ -1211,13 +1211,127 @@ document.addEventListener('DOMContentLoaded', function() {
     startAutoSave();
 
     window.addEventListener('beforeunload', function(e) {
-    saveToLocalStorage();
+        saveToLocalStorage();
     });
 });
 
+// FONCTION SHOWNOTIFICATION (DÉFINIE AVANT TOUT)
+function showNotification(message, type = 'info') {
+    if (typeof document === 'undefined') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        return;
+    }
+
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    // Style de base
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.padding = '15px';
+    notification.style.borderRadius = '5px';
+    notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    notification.style.zIndex = '10000';
+    notification.style.transition = 'all 0.3s ease';
+
+    // Styles par type
+    switch(type) {
+        case 'success':
+            notification.style.backgroundColor = '#4CAF50';
+            notification.style.color = 'white';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = '#FFC107';
+            notification.style.color = 'black';
+            break;
+        case 'error':
+            notification.style.backgroundColor = '#F44336';
+            notification.style.color = 'white';
+            break;
+        default:
+            notification.style.backgroundColor = '#2196F3';
+            notification.style.color = 'white';
+    }
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(-20px)';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// SAUVEGARDE ET CHARGEMENT
+function saveToLocalStorage() {
+    try {
+        const dataToSave = {
+            version: "2.0",
+            timestamp: new Date().toISOString(),
+            championship: championship
+        };
+        localStorage.setItem('tennisTableChampionship', JSON.stringify(dataToSave));
+        return true;
+    } catch (error) {
+        console.error('Erreur sauvegarde localStorage:', error);
+        return false;
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const savedData = localStorage.getItem('tennisTableChampionship');
+        const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
+
+        if (savedData) {
+            const championshipData = JSON.parse(savedData);
+            championship = championshipData.championship || championship;
+
+            updateTabsDisplay();
+            initializeAllDaysContent();
+            switchTab(championship.currentDay);
+
+            console.log('✅ Championnat restauré depuis localStorage');
+            showNotification('Championnat restauré automatiquement', 'success');
+
+        } else if (oldData) {
+            // Migration depuis l'ancienne version
+            const oldTournamentData = JSON.parse(oldData);
+            championship.days[1] = {
+                players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
+                matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
+            };
+
+            localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
+            saveToLocalStorage(); // Sauver dans le nouveau format
+
+            updateTabsDisplay();
+            initializeAllDaysContent();
+            switchTab(1);
+
+            showNotification('Données migrées vers le nouveau format !', 'info');
+        }
+    } catch (error) {
+        console.error('❌ Erreur chargement localStorage:', error);
+    }
+}
+
+function startAutoSave() {
+    setInterval(() => {
+        if (saveToLocalStorage()) {
+            console.log('⏰ Sauvegarde automatique périodique');
+        }
+    }, 30000); // 30 secondes
+}
+
 function setupEventListeners() {
-    document.getElementById('fileInput').addEventListener('change', handleFileImport);
-    document.getElementById('importFileInput')?.addEventListener('change', handleChampionshipImport);
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) fileInput.addEventListener('change', handleFileImport);
+    
+    const importFileInput = document.getElementById('importFileInput');
+    if (importFileInput) importFileInput.addEventListener('change', handleChampionshipImport);
     
     ['bulkModal', 'importModal'].forEach(modalId => {
         const modal = document.getElementById(modalId);
@@ -1255,18 +1369,6 @@ function setupEventListeners() {
             }
         });
     }
-    
-    // Event listeners pour les sélecteurs de journée
-    ['targetDay', 'fileTargetDay', 'bulkTargetDay'].forEach(selectorId => {
-        const selector = document.getElementById(selectorId);
-        if (selector) {
-            selector.addEventListener('change', function() {
-                if (selectorId === 'targetDay') {
-                    updateGenerateButtonText();
-                }
-            });
-        }
-    });
 }
 
 // GESTION DES ONGLETS ET JOURNÉES
@@ -1292,7 +1394,6 @@ function addNewDay() {
 function updateDaySelectors() {
     const dayNumbers = Object.keys(championship.days).sort((a, b) => Number(a) - Number(b));
     
-    // Mettre à jour tous les sélecteurs de journée
     const selectors = ['targetDay', 'fileTargetDay', 'bulkTargetDay'];
     
     selectors.forEach(selectorId => {
@@ -1308,7 +1409,6 @@ function updateDaySelectors() {
                 selector.appendChild(option);
             });
             
-            // Restaurer la valeur ou sélectionner la dernière journée créée
             if (dayNumbers.includes(currentValue)) {
                 selector.value = currentValue;
             } else {
@@ -1316,17 +1416,6 @@ function updateDaySelectors() {
             }
         }
     });
-    
-    // Mettre à jour le texte du bouton de génération
-    updateGenerateButtonText();
-}
-
-function updateGenerateButtonText() {
-    const targetDay = document.getElementById('targetDay')?.value || '1';
-    const generateTarget = document.getElementById('generateTarget');
-    if (generateTarget) {
-        generateTarget.textContent = `Journée ${targetDay}`;
-    }
 }
 
 function createDayTab(dayNumber) {
@@ -1335,16 +1424,9 @@ function createDayTab(dayNumber) {
     
     const newTab = document.createElement('button');
     newTab.className = 'tab';
-    
-    // Ajouter la classe hub-central pour la journée 1
-    if (dayNumber === 1) {
-        newTab.classList.add('hub-central');
-    }
-    
     newTab.onclick = () => switchTab(dayNumber);
     newTab.dataset.day = dayNumber;
     
-    // Ne pas ajouter le bouton de suppression pour la journée 1
     if (dayNumber === 1) {
         newTab.innerHTML = `Journée ${dayNumber} <span style="font-size: 10px; opacity: 0.7;">(Hub Central)</span>`;
     } else {
@@ -1402,7 +1484,6 @@ function generateDayContentHTML(dayNumber) {
         </div>
         
         <div class="divisions" id="divisions-${dayNumber}">
-            <!-- Les divisions seront générées dynamiquement -->
         </div>
         
         <div class="rankings-section" id="rankings-${dayNumber}" style="display: none;">
@@ -1424,6 +1505,11 @@ function generateDayContentHTML(dayNumber) {
 }
 
 function removeDay(dayNumber) {
+    if (dayNumber === 1) {
+        alert('⚠️ Impossible de supprimer la Journée 1 !\n\nLa Journée 1 est le Hub Central pour la gestion des joueurs.\nElle ne peut pas être supprimée.');
+        return;
+    }
+    
     if (Object.keys(championship.days).length <= 1) {
         alert('Vous ne pouvez pas supprimer la dernière journée !');
         return;
@@ -1432,15 +1518,12 @@ function removeDay(dayNumber) {
     if (confirm(`Supprimer définitivement la Journée ${dayNumber} ?\n\nTous les joueurs, matchs et scores seront perdus !`)) {
         delete championship.days[dayNumber];
         
-        // Supprimer l'onglet
         const tab = document.querySelector(`[data-day="${dayNumber}"]`);
         if (tab) tab.remove();
         
-        // Supprimer le contenu
         const dayContent = document.getElementById(`day-${dayNumber}`);
         if (dayContent) dayContent.remove();
         
-        // Passer à la première journée disponible
         const remainingDays = Object.keys(championship.days).map(Number);
         switchTab(Math.min(...remainingDays));
         
@@ -1448,27 +1531,19 @@ function removeDay(dayNumber) {
         saveToLocalStorage();
         showNotification(`Journée ${dayNumber} supprimée`, 'warning');
     }
-    // Protection spéciale pour la Journée 1 (Hub Central)
-        if (dayNumber === 1) {
-         alert('⚠️ Impossible de supprimer la Journée 1 !\n\nLa Journée 1 est le Hub Central pour la gestion des joueurs.\nElle ne peut pas être supprimée.');
-         return;
-}
 }
 
 function switchTab(dayNumber) {
     championship.currentDay = dayNumber;
     
-    // Masquer tous les contenus
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
     
-    // Désactiver tous les onglets
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('active');
     });
     
-    // Activer l'onglet et contenu sélectionné
     const targetTab = document.querySelector(`[data-day="${dayNumber}"]`);
     const targetContent = document.getElementById(`day-${dayNumber}`);
     
@@ -1500,14 +1575,12 @@ function updateTabsDisplay() {
     
     const existingTabs = tabsContainer.querySelectorAll('.tab:not(.general-ranking)');
     
-    // Supprimer tous les onglets de journée existants (sauf add-day-btn)
     existingTabs.forEach(tab => {
         if (!tab.classList.contains('add-day-btn')) {
             tab.remove();
         }
     });
     
-    // Recréer les onglets pour chaque journée
     const addButton = tabsContainer.querySelector('.add-day-btn');
     const generalTab = tabsContainer.querySelector('.general-ranking');
     
@@ -1519,238 +1592,20 @@ function updateTabsDisplay() {
         }
         tab.onclick = () => switchTab(Number(dayNumber));
         tab.dataset.day = dayNumber;
-        tab.innerHTML = `
-            Journée ${dayNumber}
-            <button class="remove-day" onclick="event.stopPropagation(); removeDay(${dayNumber})" title="Supprimer">×</button>
-        `;
+        
+        if (Number(dayNumber) === 1) {
+            tab.innerHTML = `Journée ${dayNumber}`;
+        } else {
+            tab.innerHTML = `
+                Journée ${dayNumber}
+                <button class="remove-day" onclick="event.stopPropagation(); removeDay(${dayNumber})" title="Supprimer">×</button>
+            `;
+        }
         
         tabsContainer.insertBefore(tab, addButton);
     });
 }
 
-
-    try {
-        const savedData = localStorage.getItem('tennisTableChampionship');
-        const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
-
-        if (savedData) {
-            const championshipData = JSON.parse(savedData);
-            championship = championshipData.championship || championship;
-
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(championship.currentDay);
-
-            console.log('✅ Championnat restauré depuis localStorage');
-            showNotification('Championnat restauré automatiquement', 'success');
-
-        } else if (oldData) {
-            // Migration depuis l'ancienne version
-            const oldTournamentData = JSON.parse(oldData);
-            championship.days[1] = {
-                players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
-                matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
-            };
-
-            localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
-            saveToLocalStorage(); // Sauver dans le nouveau format
-
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(1);
-
-            showNotification('Données migrées vers le nouveau format !', 'info');
-        }
-    } catch (error) {
-        console.error('❌ Erreur chargement localStorage:', error);
-    }
-
-
-// 5. Sauvegarde automatique périodique
-let autoSaveInterval = null;
-
-function startAutoSave() {
-    // Arrêter l'ancien interval s'il existe
-    if (autoSaveInterval) {
-        clearInterval(autoSaveInterval);
-    }
-    
-    // Sauvegarder toutes les 30 secondes
-    autoSaveInterval = setInterval(() => {
-        if (saveToLocalStorage()) {
-            console.log('⏰ Sauvegarde automatique périodique');
-        }
-    }, 30000); // 30 secondes
-}
-
-// Démarrer l'auto-save au chargement
-document.addEventListener('DOMContentLoaded', function() {
-    // ... code existant ...
-    
-    // AJOUT : Démarrer la sauvegarde automatique
-    startAutoSave();
-    
-    // AJOUT : Sauvegarder avant de quitter la page
-    window.addEventListener('beforeunload', function(e) {
-        saveToLocalStorage();
-    });
-});
-
-// 1. Modification de la fonction loadFromLocalStorage
-function loadFromLocalStorage() {
-    try {
-        const savedData = localStorage.getItem('tennisTableChampionship');
-
-        if (savedData) {
-            const championshipData = JSON.parse(savedData);
-            championship = championshipData.championship || championship;
-
-            // Vérification des données chargées
-            console.log('Données chargées:', championship);
-
-            // Reconstruire l'interface complète
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(championship.currentDay || 1);
-
-            // Vérification visuelle après 1 seconde
-            setTimeout(() => {
-                if (document.querySelectorAll('.player-card').length === 0) {
-                    console.warn('Aucun joueur affiché - Reconstruction forcée');
-                    initializeAllDaysContent();
-                }
-
-                // Vérification des notifications
-                if (typeof showNotification === 'function') {
-                    showNotification('Données chargées avec succès', 'success');
-                } else {
-                    console.error('La fonction showNotification n\'est pas définie');
-                }
-            }, 1000);
-
-            console.log('✅ Interface reconstruite avec succès');
-        } else {
-            console.log('Aucune donnée trouvée - Initialisation par défaut');
-            initializeDefaultChampionship();
-
-            // Notification pour l'initialisation par défaut
-            if (typeof showNotification === 'function') {
-                showNotification('Aucune donnée trouvée - Initialisation par défaut', 'info');
-            }
-        }
-    } catch (error) {
-        console.error('Erreur chargement localStorage:', error);
-        initializeDefaultChampionship();
-
-        // Notification d'erreur
-        if (typeof showNotification === 'function') {
-            showNotification('Erreur de chargement des données', 'error');
-        }
-    }
-}
-
-// 2. Modification de la fonction addPlayer
-function addPlayer() {
-    // ... code existant ...
-
-    // Vérification avant l'ajout
-    if (!name || name.trim() === '') {
-        if (typeof showNotification === 'function') {
-            showNotification('Veuillez entrer un nom de joueur', 'warning');
-        }
-        return;
-    }
-
-    // Ajout du joueur
-    championship.days[targetDay].players[division].push(name);
-
-    // Sauvegarde et notification
-    saveToLocalStorage();
-
-    if (typeof showNotification === 'function') {
-        showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
-    } else {
-        console.log(`Joueur ajouté: ${name} (D${division} - J${targetDay})`);
-    }
-
-    // Mise à jour de l'affichage
-    updatePlayersDisplay(targetDay);
-}
-
-// 3. Vérification de la fonction showNotification
-if (typeof showNotification !== 'function') {
-    console.warn('La fonction showNotification n\'est pas définie - Ajout d\'une version améliorée');
-
-    function showNotification(message, type = 'info') {
-        // Vérification du DOM
-        if (typeof document === 'undefined') {
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            return;
-        }
-
-        // Création de la notification
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-
-        // Style de base
-        notification.style.position = 'fixed';
-        notification.style.top = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '15px';
-        notification.style.borderRadius = '5px';
-        notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-        notification.style.zIndex = '10000';
-        notification.style.transition = 'all 0.3s ease';
-
-        // Styles par type
-        switch(type) {
-            case 'success':
-                notification.style.backgroundColor = '#4CAF50';
-                notification.style.color = 'white';
-                break;
-            case 'warning':
-                notification.style.backgroundColor = '#FFC107';
-                notification.style.color = 'black';
-                break;
-            case 'error':
-                notification.style.backgroundColor = '#F44336';
-                notification.style.color = 'white';
-                break;
-            default:
-                notification.style.backgroundColor = '#2196F3';
-                notification.style.color = 'white';
-        }
-
-        // Ajout au DOM
-        document.body.appendChild(notification);
-
-        // Animation de disparition
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-20px)';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-
-        // Log pour le débogage
-        console.log(`[NOTIFICATION ${type.toUpperCase()}] ${message}`);
-    }
-}
-
-// 3. Modification de l'initialisation
-document.addEventListener('DOMContentLoaded', function() {
-    loadFromLocalStorage();
-
-    // Bouton de reconstruction manuelle
-    const rebuildButton = document.createElement('button');
-    rebuildButton.textContent = 'Reconstruire l\'interface';
-    rebuildButton.style.position = 'fixed';
-    rebuildButton.style.bottom = '20px';
-    rebuildButton.style.right = '20px';
-    rebuildButton.style.zIndex = '1000';
-    rebuildButton.addEventListener('click', rebuildInterface);
-    document.body.appendChild(rebuildButton);
-});
 function initializeAllDaysContent() {
     Object.keys(championship.days).forEach(dayNumber => {
         const dayNum = Number(dayNumber);
@@ -1764,288 +1619,36 @@ function initializeAllDaysContent() {
     });
 }
 
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// EXPORT / IMPORT
-function exportChampionship() {
-    const championshipData = {
-        version: "2.0",
-        exportDate: new Date().toISOString(),
-        championshipName: `Championnat_${new Date().toISOString().slice(0,10)}`,
-        championship: championship,
-        stats: calculateChampionshipStats()
-    };
-
-    const dataStr = JSON.stringify(championshipData, null, 2);
-    const dataBlob = new Blob([dataStr], {type: 'application/json'});
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `championnat_tennis_table_${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showNotification('Championnat exporté avec succès !', 'success');
-}
-
-function calculateChampionshipStats() {
-    let totalPlayers = new Set();
-    let totalMatches = 0;
-    let totalDays = Object.keys(championship.days).length;
-    
-    Object.values(championship.days).forEach(day => {
-        Object.values(day.players).forEach(divPlayers => {
-            divPlayers.forEach(player => totalPlayers.add(player));
-        });
-        Object.values(day.matches).forEach(divMatches => {
-            totalMatches += divMatches.length;
-        });
-    });
-    
-    return {
-        totalPlayers: totalPlayers.size,
-        totalMatches,
-        totalDays,
-        uniquePlayersList: Array.from(totalPlayers)
-    };
-}
-
-function showImportModal() {
-    const modal = document.getElementById('importModal');
-    if (modal) {
-        modal.style.display = 'block';
-        const fileInput = document.getElementById('importFileInput');
-        if (fileInput) fileInput.value = '';
-    }
-}
-
-function closeImportModal() {
-    const modal = document.getElementById('importModal');
-    if (modal) {
-        modal.style.display = 'none';
-        const fileInput = document.getElementById('importFileInput');
-        if (fileInput) fileInput.value = '';
-        importedChampionshipData = null;
-    }
-}
-
-function handleChampionshipImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            
-            // Supporter les deux formats (ancien et nouveau)
-            if (data.championship) {
-                importedChampionshipData = data;
-            } else if (data.players && data.matches) {
-                // Ancien format - convertir
-                importedChampionshipData = {
-                    version: "2.0",
-                    exportDate: data.timestamp || new Date().toISOString(),
-                    championship: {
-                        currentDay: 1,
-                        days: {
-                            1: {
-                                players: data.players,
-                                matches: data.matches
-                            }
-                        }
-                    }
-                };
-            } else {
-                throw new Error('Format de fichier non reconnu');
-            }
-            
-            const importDate = new Date(importedChampionshipData.exportDate).toLocaleString('fr-FR');
-            const stats = importedChampionshipData.stats || calculateStatsFromData(importedChampionshipData.championship);
-            
-            const confirmMsg = `Confirmer l'import du championnat ?\n\n` +
-                             `📅 Exporté le : ${importDate}\n` +
-                             `🏆 Journées : ${stats.totalDays || Object.keys(importedChampionshipData.championship.days).length}\n` +
-                             `👥 Joueurs : ${stats.totalPlayers || 'Non calculé'}\n` +
-                             `🎯 Matchs : ${stats.totalMatches || 'Non calculé'}\n\n` +
-                             `⚠️ Cette action remplacera complètement le championnat actuel`;
-            
-            if (confirm(confirmMsg)) {
-                processImport();
-            } else {
-                closeImportModal();
-            }
-            
-        } catch (error) {
-            alert('Erreur lors de la lecture du fichier :\n' + error.message + '\n\nVérifiez que le fichier est un export valide.');
-        }
-    };
-    
-    reader.readAsText(file);
-}
-
-function calculateStatsFromData(championshipData) {
-    let totalPlayers = new Set();
-    let totalMatches = 0;
-    
-    Object.values(championshipData.days).forEach(day => {
-        Object.values(day.players).forEach(divPlayers => {
-            divPlayers.forEach(player => totalPlayers.add(player));
-        });
-        Object.values(day.matches).forEach(divMatches => {
-            totalMatches += divMatches.length;
-        });
-    });
-    
-    return {
-        totalPlayers: totalPlayers.size,
-        totalMatches,
-        totalDays: Object.keys(championshipData.days).length
-    };
-}
-
-function processImport() {
-    if (!importedChampionshipData) {
-        alert('Aucun fichier sélectionné');
-        return;
-    }
-    
-    try {
-        championship = importedChampionshipData.championship;
-        
-        // Valider la structure
-        if (!championship.days) {
-            championship.days = {};
-        }
-        if (!championship.currentDay) {
-            championship.currentDay = 1;
-        }
-        
-        // Assurer la structure de chaque journée
-        Object.keys(championship.days).forEach(dayNumber => {
-            const day = championship.days[dayNumber];
-            if (!day.players) day.players = { 1: [], 2: [], 3: [] };
-            if (!day.matches) day.matches = { 1: [], 2: [], 3: [] };
-            
-            for (let division = 1; division <= 3; division++) {
-                if (!Array.isArray(day.players[division])) day.players[division] = [];
-                if (!Array.isArray(day.matches[division])) day.matches[division] = [];
-            }
-        });
-        
-        // Reconstruire l'interface
-        updateTabsDisplay();
-        updateDaySelectors();
-        initializeAllDaysContent();
-        switchTab(championship.currentDay);
-        saveToLocalStorage();
-        
-        closeImportModal();
-        showNotification('Championnat importé avec succès !', 'success');
-        
-    } catch (error) {
-        alert('Erreur lors de l\'import : ' + error.message);
-    }
-}
-
-function clearAllData() {
-    const stats = calculateChampionshipStats();
-    const confirmMsg = `⚠️ ATTENTION ⚠️\n\n` +
-                      `Cette action va SUPPRIMER DÉFINITIVEMENT :\n` +
-                      `• ${stats.totalDays} journées\n` +
-                      `• ${stats.totalPlayers} joueurs uniques\n` +
-                      `• ${stats.totalMatches} matchs\n` +
-                      `• Tous les scores et classements\n` +
-                      `• La sauvegarde automatique\n\n` +
-                      `Cette action est IRRÉVERSIBLE !\n\n` +
-                      `Êtes-vous vraiment sûr ?`;
-    
-    if (confirm(confirmMsg)) {
-        const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUT le championnat ?');
-        
-        if (doubleConfirm) {
-            championship = {
-                currentDay: 1,
-                days: {
-                    1: {
-                        players: { 1: [], 2: [], 3: [] },
-                        matches: { 1: [], 2: [], 3: [] }
-                    }
-                }
-            };
-            
-            localStorage.removeItem('tennisTableChampionship');
-            
-            // Reconstruire l'interface
-            updateTabsDisplay();
-            updateDaySelectors();
-            initializeAllDaysContent();
-            switchTab(1);
-            
-            showNotification('Championnat réinitialisé', 'warning');
-        }
-    }
-}
-
-// GESTION DES JOUEURS (Hub Central)
+// GESTION DES JOUEURS
 function addPlayer() {
-    // Récupération des valeurs (à adapter selon votre implémentation)
     const name = document.getElementById('playerName').value.trim();
     const division = parseInt(document.getElementById('playerDivision').value);
-    const targetDay = parseInt(document.getElementById('playerDay').value);
+    const targetDay = parseInt(document.getElementById('targetDay').value);
 
-    // Vérification des valeurs
-    if (!name) {
+    if (!name || name === '') {
         showNotification('Veuillez entrer un nom de joueur', 'warning');
         return;
     }
 
-    if (!division || division < 1 || division > 3) {
-        showNotification('Division invalide', 'error');
-        return;
+    if (!championship.days[targetDay]) {
+        championship.days[targetDay] = {
+            players: { 1: [], 2: [], 3: [] },
+            matches: { 1: [], 2: [], 3: [] }
+        };
     }
 
-    if (!targetDay || !championship.days[targetDay]) {
-        showNotification('Journée invalide', 'error');
-        return;
-    }
-
-    // Vérification si le joueur existe déjà
     if (championship.days[targetDay].players[division].includes(name)) {
         showNotification(`${name} est déjà inscrit en D${division} - J${targetDay}`, 'warning');
         return;
     }
 
-    // Ajout du joueur
-    try {
-        championship.days[targetDay].players[division].push(name);
+    championship.days[targetDay].players[division].push(name);
 
-        // Sauvegarde et notification
-        saveToLocalStorage();
+    saveToLocalStorage();
+    showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
 
-        // Notification de succès
-        showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
-
-        // Mise à jour de l'affichage
-        updatePlayersDisplay(targetDay);
-
-        // Réinitialisation du formulaire
-        document.getElementById('playerName').value = '';
-    } catch (error) {
-        console.error('Erreur lors de l\'ajout du joueur:', error);
-        showNotification('Erreur lors de l\'ajout du joueur', 'error');
-    }
+    updatePlayersDisplay(targetDay);
+    document.getElementById('playerName').value = '';
 }
 
 function handleFileImport(event) {
@@ -2116,7 +1719,7 @@ function importPlayersFromData(data, dayNumber) {
     });
     
     updatePlayersDisplay(dayNumber);
-    updateDaySelectors(); // Au cas où une nouvelle journée a été créée
+    updateDaySelectors();
     saveToLocalStorage();
     
     let message = `✅ ${imported} joueurs importés vers la Journée ${dayNumber} !`;
@@ -2137,7 +1740,6 @@ function showBulkInput() {
     document.getElementById('bulkModal').style.display = 'block';
     document.getElementById('bulkText').focus();
     
-    // Stocker les infos dans le modal
     document.getElementById('bulkModal').dataset.dayNumber = targetDay;
     document.getElementById('bulkModal').dataset.division = division;
 }
@@ -2182,7 +1784,7 @@ function addBulkPlayers() {
     });
     
     updatePlayersDisplay(dayNumber);
-    updateDaySelectors(); // Au cas où une nouvelle journée a été créée
+    updateDaySelectors();
     saveToLocalStorage();
     
     let message = `✅ ${added} joueurs ajoutés à la Division ${division} - Journée ${dayNumber} !`;
@@ -2221,7 +1823,6 @@ function copyPlayersFromPreviousDay(dayNumber) {
                       `Total: ${totalPlayers} joueurs`;
     
     if (confirm(confirmMsg)) {
-        // Copier les joueurs
         for (let division = 1; division <= 3; division++) {
             championship.days[dayNumber].players[division] = [...prevPlayers[division]];
         }
@@ -2338,8 +1939,8 @@ function updatePlayersDisplay(dayNumber) {
     }
 }
 
+// GÉNÉRATION DES MATCHS
 function generateMatchesForDay(dayNumber) {
-    // Si pas de paramètre, utiliser la journée courante
     if (!dayNumber) {
         dayNumber = championship.currentDay;
     }
@@ -2363,15 +1964,10 @@ function generateMatchesForDay(dayNumber) {
             continue;
         }
         
-        // IMPORTANT : Réinitialiser les matchs existants
         dayData.matches[division] = [];
         
-        // === SYSTÈME ANTI-RÉPÉTITION AMÉLIORÉ ===
+        const matchHistory = new Map();
         
-        // 1. Collecter l'historique COMPLET des matchs de TOUTES les journées
-        const matchHistory = new Map(); // Utiliser Map pour plus d'efficacité
-        
-        // Initialiser avec 0 pour toutes les paires possibles
         for (let i = 0; i < divisionPlayers.length; i++) {
             for (let j = i + 1; j < divisionPlayers.length; j++) {
                 const key = [divisionPlayers[i], divisionPlayers[j]].sort().join('|vs|');
@@ -2379,17 +1975,14 @@ function generateMatchesForDay(dayNumber) {
             }
         }
         
-        // 2. Compter TOUS les matchs déjà joués dans TOUTES les journées
         Object.keys(championship.days).forEach(day => {
             const dayNum = parseInt(day);
             
-            // Ne pas compter les matchs de la journée actuelle (on les régénère)
             if (dayNum !== dayNumber && 
                 championship.days[dayNum] && 
                 championship.days[dayNum].matches[division]) {
                 
                 championship.days[dayNum].matches[division].forEach(match => {
-                    // Vérifier que les deux joueurs sont dans la division actuelle
                     if (divisionPlayers.includes(match.player1) && 
                         divisionPlayers.includes(match.player2)) {
                         
@@ -2401,7 +1994,6 @@ function generateMatchesForDay(dayNumber) {
             }
         });
         
-        // 3. Créer toutes les paires possibles avec leur priorité
         const possibleMatches = [];
         for (let i = 0; i < divisionPlayers.length; i++) {
             for (let j = i + 1; j < divisionPlayers.length; j++) {
@@ -2414,54 +2006,37 @@ function generateMatchesForDay(dayNumber) {
                     player1: player1,
                     player2: player2,
                     timesPlayed: timesPlayed,
-                    priority: timesPlayed === 0 ? 0 : timesPlayed + 10, // Priorité 0 pour matchs jamais joués
+                    priority: timesPlayed === 0 ? 0 : timesPlayed + 10,
                     key: key,
-                    randomOrder: Math.random() // Pour mélanger les matchs de même priorité
+                    randomOrder: Math.random()
                 });
             }
         }
         
-        // 4. Trier par priorité : matchs jamais joués d'abord
         possibleMatches.sort((a, b) => {
             if (a.priority !== b.priority) return a.priority - b.priority;
-            return a.randomOrder - b.randomOrder; // Mélanger si même priorité
+            return a.randomOrder - b.randomOrder;
         });
         
-        // 5. Logging pour debug
-        console.log(`\n=== Division ${division} - Journée ${dayNumber} ===`);
-        console.log(`Joueurs: ${divisionPlayers.length}`);
-        console.log(`Matchs possibles: ${possibleMatches.length}`);
-        console.log(`Matchs jamais joués: ${possibleMatches.filter(m => m.timesPlayed === 0).length}`);
-        console.log(`Matchs déjà joués 1 fois: ${possibleMatches.filter(m => m.timesPlayed === 1).length}`);
-        console.log(`Matchs déjà joués 2+ fois: ${possibleMatches.filter(m => m.timesPlayed >= 2).length}`);
-        
-        // 6. Générer les matchs pour cette journée
         const playersMatchCount = new Map();
         divisionPlayers.forEach(p => playersMatchCount.set(p, 0));
         
-        const targetMatchesPerPlayer = 4; // Objectif : 4 matchs par joueur
-        const maxTotalMatches = Math.floor((divisionPlayers.length * targetMatchesPerPlayer) / 2);
-        
-        // Organiser par tours
+        const targetMatchesPerPlayer = 4;
         const matchesByTour = { 1: [], 2: [], 3: [], 4: [] };
         const usedMatches = new Set();
         
-        // 7. Sélection des matchs avec algorithme amélioré
         for (let tour = 1; tour <= 4; tour++) {
             const playersInThisTour = new Set();
             
             for (const matchPair of possibleMatches) {
-                // Skip si déjà utilisé
                 if (usedMatches.has(matchPair.key)) continue;
                 
-                // Vérifier disponibilité des joueurs
                 if (!playersInThisTour.has(matchPair.player1) && 
                     !playersInThisTour.has(matchPair.player2)) {
                     
                     const p1Count = playersMatchCount.get(matchPair.player1) || 0;
                     const p2Count = playersMatchCount.get(matchPair.player2) || 0;
                     
-                    // Vérifier que les joueurs n'ont pas trop de matchs
                     if (p1Count < targetMatchesPerPlayer && p2Count < targetMatchesPerPlayer) {
                         
                         const matchData = {
@@ -2486,7 +2061,6 @@ function generateMatchesForDay(dayNumber) {
                         playersMatchCount.set(matchPair.player2, p2Count + 1);
                         usedMatches.add(matchPair.key);
                         
-                        // Compter pour le rapport
                         if (matchPair.timesPlayed === 0) {
                             reportDetails.totalNewMatches++;
                         } else {
@@ -2495,19 +2069,16 @@ function generateMatchesForDay(dayNumber) {
                     }
                 }
                 
-                // Arrêter si on a assez de matchs pour ce tour
                 if (matchesByTour[tour].length >= Math.ceil(divisionPlayers.length / 2)) {
                     break;
                 }
             }
         }
         
-        // 8. Compiler tous les matchs
         for (let tour = 1; tour <= 4; tour++) {
             dayData.matches[division].push(...matchesByTour[tour]);
         }
         
-        // Statistiques pour le rapport
         reportDetails.divisions[division] = {
             players: divisionPlayers.length,
             newMatches: dayData.matches[division].filter(m => !m.isRematch).length,
@@ -2516,12 +2087,10 @@ function generateMatchesForDay(dayNumber) {
         };
     }
     
-    // Mise à jour et sauvegarde
     updateMatchesDisplay(dayNumber);
     updateStats(dayNumber);
-    saveToLocalStorage(); // IMPORTANT : Sauvegarder après génération
+    saveToLocalStorage();
     
-    // Rapport détaillé amélioré
     let summary = `✅ Matchs générés pour la Journée ${dayNumber} !\n\n`;
     
     for (let division = 1; division <= 3; division++) {
@@ -2544,19 +2113,6 @@ function generateMatchesForDay(dayNumber) {
     summary += `\n💡 L'algorithme a priorisé les matchs jamais joués !`;
     
     alert(summary);
-    
-    // Log détaillé dans la console pour debug
-    console.log("Génération terminée:", reportDetails);
-}
-
-        
-function shuffleArray(array) {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
 }
 
 // AFFICHAGE DES MATCHS
@@ -2707,12 +2263,11 @@ function updateMatchesDisplay(dayNumber) {
         
         container.innerHTML = html;
         
-        // Rendre visible le premier tour de chaque division
         setTimeout(() => {
-        for (let div = 1; div <= 3; div++) {
-        const firstTour = document.getElementById(`tour${dayNumber}-${div}-1`);
-        if (firstTour) {
-            firstTour.classList.add('active');
+            for (let div = 1; div <= 3; div++) {
+                const firstTour = document.getElementById(`tour${dayNumber}-${div}-1`);
+                if (firstTour) {
+                    firstTour.classList.add('active');
                 }
             }
         }, 100);
@@ -2733,9 +2288,6 @@ function updateSetScore(dayNumber, division, matchIndex, setIndex, scoreField, v
 
 function handleEnterKey(event, dayNumber, division, matchIndex) {
     if (event.key === 'Enter') {
-        const currentValue = event.target.value;
-        event.target.dispatchEvent(new Event('change'));
-        
         const wasCompleted = championship.days[dayNumber].matches[division][matchIndex].completed;
         
         checkMatchCompletion(dayNumber, division, matchIndex);
@@ -2743,8 +2295,6 @@ function handleEnterKey(event, dayNumber, division, matchIndex) {
         const isNowCompleted = championship.days[dayNumber].matches[division][matchIndex].completed;
         
         updateSingleMatchDisplay(dayNumber, division, matchIndex);
-        
-        // AJOUT IMPORTANT : Toujours sauvegarder après mise à jour
         saveToLocalStorage();
         
         const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
@@ -2767,7 +2317,6 @@ function handleEnterKey(event, dayNumber, division, matchIndex) {
                 }
             }, 200);
             
-            // Notification de match terminé
             showNotification(`Match terminé: ${championship.days[dayNumber].matches[division][matchIndex].winner} gagne!`, 'success');
         }
     }
@@ -3235,7 +2784,6 @@ function updateRankingsForDay(dayNumber, sortBy = 'points') {
 function updateGeneralRanking() {
     const generalStats = calculateGeneralStats();
     
-    // Mettre à jour les statistiques générales
     const generalStatsEl = document.getElementById('generalStats');
     if (generalStatsEl) {
         generalStatsEl.innerHTML = `
@@ -3258,7 +2806,6 @@ function updateGeneralRanking() {
         `;
     }
     
-    // Calculer le classement général par division
     const generalRanking = calculateGeneralRanking();
     
     const generalRankingContent = document.getElementById('generalRankingContent');
@@ -3355,7 +2902,6 @@ function calculateGeneralRanking() {
         divisions: { 1: [], 2: [], 3: [] }
     };
     
-    // Collecter tous les joueurs et leurs stats par division
     for (let division = 1; division <= 3; division++) {
         const playersData = {};
         
@@ -3394,7 +2940,6 @@ function calculateGeneralRanking() {
             });
         });
         
-        // Calculer le pourcentage de victoire moyen et trier
         const playersArray = Object.values(playersData)
             .filter(player => player.daysPlayed > 0)
             .map(player => ({
@@ -3437,7 +2982,6 @@ function showGeneralPlayerDetails(playerName, division) {
         return;
     }
     
-    // Calculer les totaux
     const totals = playerHistory.reduce((acc, day) => ({
         totalPoints: acc.totalPoints + day.totalPoints,
         totalWins: acc.totalWins + day.wins,
@@ -3553,45 +3097,219 @@ function exportGeneralRanking() {
     
     showNotification('Classement général exporté !', 'success');
 }
-function analyzeMatchRepetitions() {
-    console.log("\n=== ANALYSE DES RÉPÉTITIONS DE MATCHS ===");
+
+// EXPORT / IMPORT
+function exportChampionship() {
+    const championshipData = {
+        version: "2.0",
+        exportDate: new Date().toISOString(),
+        championshipName: `Championnat_${new Date().toISOString().slice(0,10)}`,
+        championship: championship,
+        stats: calculateChampionshipStats()
+    };
+
+    const dataStr = JSON.stringify(championshipData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
     
-    for (let division = 1; division <= 3; division++) {
-        console.log(`\n--- Division ${division} ---`);
-        
-        const allMatches = new Map();
-        
-        // Collecter tous les matchs de toutes les journées
-        Object.keys(championship.days).forEach(dayNum => {
-            const day = championship.days[dayNum];
-            if (day.matches[division]) {
-                day.matches[division].forEach(match => {
-                    const key = [match.player1, match.player2].sort().join(' vs ');
-                    if (!allMatches.has(key)) {
-                        allMatches.set(key, []);
-                    }
-                    allMatches.get(key).push(`J${dayNum}`);
-                });
-            }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `championnat_tennis_table_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification('Championnat exporté avec succès !', 'success');
+}
+
+function calculateChampionshipStats() {
+    let totalPlayers = new Set();
+    let totalMatches = 0;
+    let totalDays = Object.keys(championship.days).length;
+    
+    Object.values(championship.days).forEach(day => {
+        Object.values(day.players).forEach(divPlayers => {
+            divPlayers.forEach(player => totalPlayers.add(player));
         });
-        
-        let repetitions = 0;
-        allMatches.forEach((days, matchKey) => {
-            if (days.length > 1) {
-                console.log(`⚠️ "${matchKey}" joué ${days.length} fois: ${days.join(', ')}`);
-                repetitions++;
-            }
+        Object.values(day.matches).forEach(divMatches => {
+            totalMatches += divMatches.length;
         });
-        
-        if (repetitions === 0) {
-            console.log("✅ Aucune répétition détectée !");
-        } else {
-            console.log(`Total: ${repetitions} matchs répétés`);
-        }
+    });
+    
+    return {
+        totalPlayers: totalPlayers.size,
+        totalMatches,
+        totalDays,
+        uniquePlayersList: Array.from(totalPlayers)
+    };
+}
+
+function showImportModal() {
+    const modal = document.getElementById('importModal');
+    if (modal) {
+        modal.style.display = 'block';
+        const fileInput = document.getElementById('importFileInput');
+        if (fileInput) fileInput.value = '';
     }
 }
 
-    </script> 
+function closeImportModal() {
+    const modal = document.getElementById('importModal');
+    if (modal) {
+        modal.style.display = 'none';
+        const fileInput = document.getElementById('importFileInput');
+        if (fileInput) fileInput.value = '';
+        importedChampionshipData = null;
+    }
+}
+
+function handleChampionshipImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
     
-    </body>
-</html>
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            if (data.championship) {
+                importedChampionshipData = data;
+            } else if (data.players && data.matches) {
+                importedChampionshipData = {
+                    version: "2.0",
+                    exportDate: data.timestamp || new Date().toISOString(),
+                    championship: {
+                        currentDay: 1,
+                        days: {
+                            1: {
+                                players: data.players,
+                                matches: data.matches
+                            }
+                        }
+                    }
+                };
+            } else {
+                throw new Error('Format de fichier non reconnu');
+            }
+            
+            const importDate = new Date(importedChampionshipData.exportDate).toLocaleString('fr-FR');
+            const stats = importedChampionshipData.stats || calculateStatsFromData(importedChampionshipData.championship);
+            
+            const confirmMsg = `Confirmer l'import du championnat ?\n\n` +
+                             `📅 Exporté le : ${importDate}\n` +
+                             `🏆 Journées : ${stats.totalDays || Object.keys(importedChampionshipData.championship.days).length}\n` +
+                             `👥 Joueurs : ${stats.totalPlayers || 'Non calculé'}\n` +
+                             `🎯 Matchs : ${stats.totalMatches || 'Non calculé'}\n\n` +
+                             `⚠️ Cette action remplacera complètement le championnat actuel`;
+            
+            if (confirm(confirmMsg)) {
+                processImport();
+            } else {
+                closeImportModal();
+            }
+            
+        } catch (error) {
+            alert('Erreur lors de la lecture du fichier :\n' + error.message + '\n\nVérifiez que le fichier est un export valide.');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+function calculateStatsFromData(championshipData) {
+    let totalPlayers = new Set();
+    let totalMatches = 0;
+    
+    Object.values(championshipData.days).forEach(day => {
+        Object.values(day.players).forEach(divPlayers => {
+            divPlayers.forEach(player => totalPlayers.add(player));
+        });
+        Object.values(day.matches).forEach(divMatches => {
+            totalMatches += divMatches.length;
+        });
+    });
+    
+    return {
+        totalPlayers: totalPlayers.size,
+        totalMatches,
+        totalDays: Object.keys(championshipData.days).length
+    };
+}
+
+function processImport() {
+    if (!importedChampionshipData) {
+        alert('Aucun fichier sélectionné');
+        return;
+    }
+    
+    try {
+        championship = importedChampionshipData.championship;
+        
+        if (!championship.days) {
+            championship.days = {};
+        }
+        if (!championship.currentDay) {
+            championship.currentDay = 1;
+        }
+        
+        Object.keys(championship.days).forEach(dayNumber => {
+            const day = championship.days[dayNumber];
+            if (!day.players) day.players = { 1: [], 2: [], 3: [] };
+            if (!day.matches) day.matches = { 1: [], 2: [], 3: [] };
+            
+            for (let division = 1; division <= 3; division++) {
+                if (!Array.isArray(day.players[division])) day.players[division] = [];
+                if (!Array.isArray(day.matches[division])) day.matches[division] = [];
+            }
+        });
+        
+        updateTabsDisplay();
+        updateDaySelectors();
+        initializeAllDaysContent();
+        switchTab(championship.currentDay);
+        saveToLocalStorage();
+        
+        closeImportModal();
+        showNotification('Championnat importé avec succès !', 'success');
+        
+    } catch (error) {
+        alert('Erreur lors de l\'import : ' + error.message);
+    }
+}
+
+function clearAllData() {
+    const stats = calculateChampionshipStats();
+    const confirmMsg = `⚠️ ATTENTION ⚠️\n\n` +
+                      `Cette action va SUPPRIMER DÉFINITIVEMENT :\n` +
+                      `• ${stats.totalDays} journées\n` +
+                      `• ${stats.totalPlayers} joueurs uniques\n` +
+                      `• ${stats.totalMatches} matchs\n` +
+                      `• Tous les scores et classements\n` +
+                      `• La sauvegarde automatique\n\n` +
+                      `Cette action est IRRÉVERSIBLE !\n\n` +
+                      `Êtes-vous vraiment sûr ?`;
+    
+    if (confirm(confirmMsg)) {
+        const doubleConfirm = confirm('Dernière confirmation :\n\nSupprimer TOUT le championnat ?');
+        
+        if (doubleConfirm) {
+            championship = {
+                currentDay: 1,
+                days: {
+                    1: {
+                        players: { 1: [], 2: [], 3: [] },
+                        matches: { 1: [], 2: [], 3: [] }
+                    }
+                }
+            };
+            
+            localStorage.removeItem('tennisTableChampionship');
+            
+            updateTabsDisplay();
+            updateDaySelectors();
+            initializeAllDaysContent();
+            switchTab(1);
+            
+            showNotification('Championnat réinitialisé', 'warning');
+        }
+    }
+}
