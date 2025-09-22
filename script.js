@@ -1895,7 +1895,6 @@ try {
             return;
         }
         
-        const { jsPDF } = window.jsPDF;
         const doc = new jsPDF();
         
         // Configuration
