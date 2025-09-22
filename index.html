@@ -1619,61 +1619,12 @@ function loadFromLocalStorage() {
                     console.warn('Aucun joueur affiché - Reconstruction forcée');
                     initializeAllDaysContent();
                 }
-            }, 1000);
 
-            console.log('✅ Interface reconstruite avec succès');
-        } else {
-            console.log('Aucune donnée trouvée - Initialisation par défaut');
-            initializeDefaultChampionship();
-        }
-    } catch (error) {
-        console.error('Erreur chargement localStorage:', error);
-        initializeDefaultChampionship();
-    }
-}
-
-// 2. Ajout d'une fonction de reconstruction manuelle
-function rebuildInterface() {
-    console.log('Reconstruction manuelle de l\'interface...');
-    updateTabsDisplay();
-    initializeAllDaysContent();
-    switchTab(championship.currentDay || 1);
-}
-
-// 3. Modification de l'initialisation
-document.addEventListener('DOMContentLoaded', function() {
-    loadFromLocalStorage();
-
-    // Bouton de reconstruction manuelle
-    const rebuildButton = document.createElement('button');
-    rebuildButton.textContent = 'Reconstruire l\'interface';
-    rebuildButton.style.position = 'fixed';
-    rebuildButton.style.bottom = '20px';
-    rebuildButton.style.right = '20px';
-    rebuildButton.style.zIndex = '1000';
-    rebuildButton.addEventListener('click', rebuildInterface);
-    document.body.appendChild(rebuildButton);
-});
-    try {
-        const savedData = localStorage.getItem('tennisTableChampionship');
-
-        if (savedData) {
-            const championshipData = JSON.parse(savedData);
-            championship = championshipData.championship || championship;
-
-            // Vérification des données chargées
-            console.log('Données chargées:', championship);
-
-            // Reconstruire l'interface complète
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(championship.currentDay || 1);
-
-            // Vérification visuelle après 1 seconde
-            setTimeout(() => {
-                if (document.querySelectorAll('.player-card').length === 0) {
-                    console.warn('Aucun joueur affiché - Reconstruction forcée');
-                    initializeAllDaysContent();
+                // Vérification des notifications
+                if (typeof showNotification === 'function') {
+                    showNotification('Données chargées avec succès', 'success');
+                } else {
+                    console.error('La fonction showNotification n\'est pas définie');
                 }
             }, 1000);
 
@@ -1681,19 +1632,63 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             console.log('Aucune donnée trouvée - Initialisation par défaut');
             initializeDefaultChampionship();
+
+            // Notification pour l'initialisation par défaut
+            if (typeof showNotification === 'function') {
+                showNotification('Aucune donnée trouvée - Initialisation par défaut', 'info');
+            }
         }
     } catch (error) {
         console.error('Erreur chargement localStorage:', error);
         initializeDefaultChampionship();
+
+        // Notification d'erreur
+        if (typeof showNotification === 'function') {
+            showNotification('Erreur de chargement des données', 'error');
+        }
+    }
+}
+
+// 2. Modification de la fonction addPlayer
+function addPlayer() {
+    // ... code existant ...
+
+    // Vérification avant l'ajout
+    if (!name || name.trim() === '') {
+        if (typeof showNotification === 'function') {
+            showNotification('Veuillez entrer un nom de joueur', 'warning');
+        }
+        return;
     }
 
+    // Ajout du joueur
+    championship.days[targetDay].players[division].push(name);
 
-// 2. Ajout d'une fonction de reconstruction manuelle
-function rebuildInterface() {
-    console.log('Reconstruction manuelle de l\'interface...');
-    updateTabsDisplay();
-    initializeAllDaysContent();
-    switchTab(championship.currentDay || 1);
+    // Sauvegarde et notification
+    saveToLocalStorage();
+
+    if (typeof showNotification === 'function') {
+        showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
+    } else {
+        console.log(`Joueur ajouté: ${name} (D${division} - J${targetDay})`);
+    }
+
+    // Mise à jour de l'affichage
+    updatePlayersDisplay(targetDay);
+}
+
+// 3. Vérification de la fonction showNotification
+if (typeof showNotification !== 'function') {
+    console.warn('La fonction showNotification n\'est pas définie - Ajout d\'une version de secours');
+
+    function showNotification(message, type = 'info') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+
+        // Version de secours avec alert
+        if (typeof alert === 'function') {
+            alert(`[${type.toUpperCase()}] ${message}`);
+        }
+    }
 }
 
 // 3. Modification de l'initialisation
