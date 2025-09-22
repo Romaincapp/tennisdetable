@@ -1190,158 +1190,281 @@
     <script>
         console.log("Script démarré");
         
-        // STRUCTURE DE DONNÉES CHAMPIONNAT
-let championship = {
-    currentDay: 1,
-    days: {
-        1: {
-            players: { 1: [], 2: [], 3: [] },
-            matches: { 1: [], 2: [], 3: [] }
-        }
-    }
-};
-
-console.log("Variables globales créées");
-
-let importedChampionshipData = null;
-
-// FONCTION SHOWNOTIFICATION (DÉFINIE AVANT TOUT)
-function showNotification(message, type = 'info') {
-    if (typeof document === 'undefined') {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        return;
-    }
-
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-
-    // Style de base
-    notification.style.position = 'fixed';
-    notification.style.top = '20px';
-    notification.style.right = '20px';
-    notification.style.padding = '15px';
-    notification.style.borderRadius = '5px';
-    notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    notification.style.zIndex = '10000';
-    notification.style.transition = 'all 0.3s ease';
-
-    // Styles par type
-    switch(type) {
-        case 'success':
-            notification.style.backgroundColor = '#4CAF50';
-            notification.style.color = 'white';
-            break;
-        case 'warning':
-            notification.style.backgroundColor = '#FFC107';
-            notification.style.color = 'black';
-            break;
-        case 'error':
-            notification.style.backgroundColor = '#F44336';
-            notification.style.color = 'white';
-            break;
-        default:
-            notification.style.backgroundColor = '#2196F3';
-            notification.style.color = 'white';
-    }
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateY(-20px)';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-console.log("showNotification définie");
-
-// SAUVEGARDE ET CHARGEMENT
-function saveToLocalStorage() {
-    try {
-        const dataToSave = {
-            version: "2.0",
-            timestamp: new Date().toISOString(),
-            championship: championship
-        };
-        localStorage.setItem('tennisTableChampionship', JSON.stringify(dataToSave));
-        return true;
-    } catch (error) {
-        console.error('Erreur sauvegarde localStorage:', error);
-        return false;
-    }
-}
-
-console.log("saveToLocalStorage définie");
-
-function loadFromLocalStorage() {
-    try {
-        const savedData = localStorage.getItem('tennisTableChampionship');
-        const oldData = localStorage.getItem('tennisTableTournament'); // Ancienne version
-
-        if (savedData) {
-            const championshipData = JSON.parse(savedData);
-            championship = championshipData.championship || championship;
-
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(championship.currentDay);
-
-            console.log('✅ Championnat restauré depuis localStorage');
-            showNotification('Championnat restauré automatiquement', 'success');
-
-        } else if (oldData) {
-            // Migration depuis l'ancienne version
-            const oldTournamentData = JSON.parse(oldData);
-            championship.days[1] = {
-                players: oldTournamentData.players || { 1: [], 2: [], 3: [] },
-                matches: oldTournamentData.matches || { 1: [], 2: [], 3: [] }
+        try {
+            // STRUCTURE DE DONNÉES CHAMPIONNAT
+            let championship = {
+                currentDay: 1,
+                days: {
+                    1: {
+                        players: { 1: [], 2: [], 3: [] },
+                        matches: { 1: [], 2: [], 3: [] }
+                    }
+                }
             };
 
-            localStorage.removeItem('tennisTableTournament'); // Nettoyer l'ancienne version
-            saveToLocalStorage(); // Sauver dans le nouveau format
+            console.log("Variables globales créées");
+            window.championship = championship; // Rendre accessible globalement
 
-            updateTabsDisplay();
-            initializeAllDaysContent();
-            switchTab(1);
+            let importedChampionshipData = null;
 
-            showNotification('Données migrées vers le nouveau format !', 'info');
+            // FONCTION SHOWNOTIFICATION (DÉFINIE AVANT TOUT)
+            function showNotification(message, type = 'info') {
+                console.log(`[NOTIFICATION ${type.toUpperCase()}] ${message}`);
+                
+                if (typeof document === 'undefined') {
+                    return;
+                }
+
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+
+                // Style de base
+                notification.style.position = 'fixed';
+                notification.style.top = '20px';
+                notification.style.right = '20px';
+                notification.style.padding = '15px';
+                notification.style.borderRadius = '5px';
+                notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+                notification.style.zIndex = '10000';
+                notification.style.transition = 'all 0.3s ease';
+
+                // Styles par type
+                switch(type) {
+                    case 'success':
+                        notification.style.backgroundColor = '#4CAF50';
+                        notification.style.color = 'white';
+                        break;
+                    case 'warning':
+                        notification.style.backgroundColor = '#FFC107';
+                        notification.style.color = 'black';
+                        break;
+                    case 'error':
+                        notification.style.backgroundColor = '#F44336';
+                        notification.style.color = 'white';
+                        break;
+                    default:
+                        notification.style.backgroundColor = '#2196F3';
+                        notification.style.color = 'white';
+                }
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(-20px)';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }, 3000);
+            }
+            window.showNotification = showNotification;
+            console.log("showNotification définie");
+
+            // FONCTIONS DE BASE
+            function addPlayer() {
+                console.log("addPlayer appelée");
+                const name = document.getElementById('playerName').value.trim();
+                const division = parseInt(document.getElementById('playerDivision').value);
+                const targetDay = parseInt(document.getElementById('targetDay').value);
+
+                if (!name || name === '') {
+                    showNotification('Veuillez entrer un nom de joueur', 'warning');
+                    return;
+                }
+
+                if (!championship.days[targetDay]) {
+                    championship.days[targetDay] = {
+                        players: { 1: [], 2: [], 3: [] },
+                        matches: { 1: [], 2: [], 3: [] }
+                    };
+                }
+
+                if (championship.days[targetDay].players[division].includes(name)) {
+                    showNotification(`${name} est déjà inscrit en D${division} - J${targetDay}`, 'warning');
+                    return;
+                }
+
+                championship.days[targetDay].players[division].push(name);
+                showNotification(`${name} ajouté à D${division} - J${targetDay}`, 'success');
+
+                updatePlayersDisplay(targetDay);
+                document.getElementById('playerName').value = '';
+            }
+            window.addPlayer = addPlayer;
+            console.log("addPlayer définie");
+
+            function showBulkInput() {
+                console.log("showBulkInput appelée");
+                const division = document.getElementById('bulkDivision').value;
+                const targetDay = document.getElementById('bulkTargetDay').value;
+                document.getElementById('selectedDivision').textContent = `Division ${division} - Journée ${targetDay}`;
+                document.getElementById('bulkModal').style.display = 'block';
+                document.getElementById('bulkText').focus();
+                
+                document.getElementById('bulkModal').dataset.dayNumber = targetDay;
+                document.getElementById('bulkModal').dataset.division = division;
+            }
+            window.showBulkInput = showBulkInput;
+            console.log("showBulkInput définie");
+
+            function closeBulkModal() {
+                document.getElementById('bulkModal').style.display = 'none';
+                document.getElementById('bulkText').value = '';
+            }
+            window.closeBulkModal = closeBulkModal;
+
+            function addBulkPlayers() {
+                console.log("addBulkPlayers appelée");
+                const text = document.getElementById('bulkText').value.trim();
+                const modal = document.getElementById('bulkModal');
+                const dayNumber = parseInt(modal.dataset.dayNumber) || 1;
+                const division = parseInt(modal.dataset.division) || 1;
+                
+                if (!text) {
+                    alert('Veuillez entrer au moins un nom de joueur');
+                    return;
+                }
+                
+                const names = text.split('\n')
+                                 .map(name => name.trim())
+                                 .filter(name => name.length > 0);
+                
+                let added = 0;
+                let duplicates = [];
+                
+                if (!championship.days[dayNumber]) {
+                    championship.days[dayNumber] = {
+                        players: { 1: [], 2: [], 3: [] },
+                        matches: { 1: [], 2: [], 3: [] }
+                    };
+                }
+                
+                names.forEach(name => {
+                    if (!championship.days[dayNumber].players[division].includes(name)) {
+                        championship.days[dayNumber].players[division].push(name);
+                        added++;
+                    } else {
+                        duplicates.push(name);
+                    }
+                });
+                
+                updatePlayersDisplay(dayNumber);
+                
+                let message = `✅ ${added} joueurs ajoutés à la Division ${division} - Journée ${dayNumber} !`;
+                if (duplicates.length > 0) {
+                    message += `\n\n⚠️ Joueurs déjà présents (ignorés): ${duplicates.join(', ')}`;
+                }
+                
+                alert(message);
+                closeBulkModal();
+            }
+            window.addBulkPlayers = addBulkPlayers;
+            console.log("addBulkPlayers définie");
+
+            function updatePlayersDisplay(dayNumber) {
+                console.log("updatePlayersDisplay appelée pour journée", dayNumber);
+                if (!championship.days[dayNumber]) return;
+                
+                for (let division = 1; division <= 3; division++) {
+                    const container = document.getElementById(`division${dayNumber}-${division}-players`);
+                    if (!container) continue;
+                    
+                    const players = championship.days[dayNumber].players[division];
+                    
+                    if (players.length === 0) {
+                        container.innerHTML = '<div class="empty-state">Aucun joueur</div>';
+                    } else {
+                        container.innerHTML = players.map(player => 
+                            `<div class="player-tag" onclick="alert('Détails de ${player}')">
+                                ${player}
+                                <button class="remove-player" onclick="event.stopPropagation(); removePlayer(${dayNumber}, ${division}, '${player}')" title="Supprimer">×</button>
+                            </div>`
+                        ).join('');
+                    }
+                }
+            }
+            window.updatePlayersDisplay = updatePlayersDisplay;
+
+            function removePlayer(dayNumber, division, playerName) {
+                console.log("removePlayer appelée");
+                championship.days[dayNumber].players[division] = championship.days[dayNumber].players[division].filter(p => p !== playerName);
+                updatePlayersDisplay(dayNumber);
+                showNotification(`${playerName} supprimé`, 'warning');
+            }
+            window.removePlayer = removePlayer;
+
+            function generateMatchesForDay(dayNumber) {
+                console.log("generateMatchesForDay appelée");
+                if (!dayNumber) dayNumber = championship.currentDay;
+                alert(`Génération des matchs pour la Journée ${dayNumber} (fonction simplifiée pour test)`);
+            }
+            window.generateMatchesForDay = generateMatchesForDay;
+
+            // FONCTIONS SIMPLIFIÉES POUR LES AUTRES BOUTONS
+            window.updateRankings = () => alert("Classements (fonction test)");
+            window.exportChampionship = () => alert("Export (fonction test)");
+            window.showImportModal = () => alert("Import (fonction test)");
+            window.clearAllData = () => {
+                if (confirm("Tout vider ?")) {
+                    championship.days[1] = { players: { 1: [], 2: [], 3: [] }, matches: { 1: [], 2: [], 3: [] } };
+                    updatePlayersDisplay(1);
+                    showNotification("Données vidées", "warning");
+                }
+            };
+            window.addNewDay = () => alert("Ajouter journée (fonction test)");
+            window.switchTab = (day) => alert(`Passer à J${day} (fonction test)`);
+            window.switchToGeneralRanking = () => alert("Classement général (fonction test)");
+
+            // INITIALISATION SIMPLE
+            function initializeDivisionsDisplay(dayNumber = 1) {
+                const divisionsContainer = document.getElementById(`divisions-${dayNumber}`);
+                if (!divisionsContainer) return;
+                
+                divisionsContainer.innerHTML = `
+                    <div class="division division-1">
+                        <h3>🥇 Division 1</h3>
+                        <div class="players-list" id="division${dayNumber}-1-players">
+                            <div class="empty-state">Aucun joueur</div>
+                        </div>
+                    </div>
+                    
+                    <div class="division division-2">
+                        <h3>🥈 Division 2</h3>
+                        <div class="players-list" id="division${dayNumber}-2-players">
+                            <div class="empty-state">Aucun joueur</div>
+                        </div>
+                    </div>
+                    
+                    <div class="division division-3">
+                        <h3>🥉 Division 3</h3>
+                        <div class="players-list" id="division${dayNumber}-3-players">
+                            <div class="empty-state">Aucun joueur</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // INITIALISATION AU CHARGEMENT
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log("DOM chargé, début initialisation");
+                initializeDivisionsDisplay(1);
+                updatePlayersDisplay(1);
+                console.log("Initialisation terminée");
+            });
+
+            console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
+            
+        } catch (error) {
+            console.error("❌ ERREUR DANS LE SCRIPT:", error);
+            console.error("Stack trace:", error.stack);
         }
-    } catch (error) {
-        console.error('❌ Erreur chargement localStorage:', error);
-    }
-}
-
-console.log("loadFromLocalStorage définie");
-
-function startAutoSave() {
-    setInterval(() => {
-        if (saveToLocalStorage()) {
-            console.log('⏰ Sauvegarde automatique périodique');
-        }
-    }, 30000); // 30 secondes
-}
-
-console.log("startAutoSave définie");
-
-// INITIALISATION
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM chargé, début initialisation");
-    setupEventListeners();
-    loadFromLocalStorage();
-    initializeDivisionsDisplay();
-    updateTabsDisplay();
-    updateDaySelectors();
-    startAutoSave();
-
-    window.addEventListener('beforeunload', function(e) {
-        saveToLocalStorage();
-    });
+    </script>
     
-    console.log("Initialisation terminée");
-});
-
-console.log("Event listener DOM ajouté");
+   
+    <script>
 
 function setupEventListeners() {
     const fileInput = document.getElementById('fileInput');
@@ -1521,6 +1644,7 @@ function generateDayContentHTML(dayNumber) {
     `;
 }
 
+
 function removeDay(dayNumber) {
     if (dayNumber === 1) {
         alert('⚠️ Impossible de supprimer la Journée 1 !\n\nLa Journée 1 est le Hub Central pour la gestion des joueurs.\nElle ne peut pas être supprimée.');
@@ -1667,6 +1791,8 @@ function addPlayer() {
     updatePlayersDisplay(targetDay);
     document.getElementById('playerName').value = '';
 }
+window.addPlayer = addPlayer;
+console.log("addPlayer assignée");
 
 function handleFileImport(event) {
     const file = event.target.files[0];
@@ -1785,11 +1911,15 @@ function showBulkInput() {
     document.getElementById('bulkModal').dataset.dayNumber = targetDay;
     document.getElementById('bulkModal').dataset.division = division;
 }
+window.showBulkInput = showBulkInput;
+console.log("showBulkInput assignée");
 
 function closeBulkModal() {
     document.getElementById('bulkModal').style.display = 'none';
     document.getElementById('bulkText').value = '';
 }
+window.closeBulkModal = closeBulkModal;
+console.log("closeBulkModal assignée");
 
 function addBulkPlayers() {
     const text = document.getElementById('bulkText').value.trim();
@@ -1837,6 +1967,8 @@ function addBulkPlayers() {
     alert(message);
     closeBulkModal();
 }
+window.addBulkPlayers = addBulkPlayers;
+console.log("addBulkPlayers assignée");
 
 function copyPlayersFromPreviousDay(dayNumber) {
     const previousDay = dayNumber - 1;
@@ -3404,5 +3536,8 @@ function checkFunctions() {
     });
 }
 
-// Appeler la vérification au chargement
-setTimeout(checkFunctions, 1000);
+    // Appeler la vérification au chargement
+    setTimeout(checkFunctions, 1000);
+    </script>
+    </body>
+ </html>
