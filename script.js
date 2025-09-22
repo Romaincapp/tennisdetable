@@ -1,3 +1,5 @@
+import { jsPDF } from 'jspdf';
+
 console.log("Script démarré");
 
 try {
@@ -1881,15 +1883,8 @@ try {
 
       
     
-    function exportGeneralRankingToPDF() {
+   function exportGeneralRankingToPDF() {
     console.log("Début de la fonction exportGeneralRankingToPDF");
-
-    if (typeof window.jsPDF === 'undefined') {
-        console.error("jsPDF n'est pas chargé correctement");
-        alert("jsPDF n'est pas chargé correctement. Veuillez vérifier la console pour plus de détails.");
-        return;
-    }
-    console.log("jsPDF est chargé correctement");
 
     const generalRanking = calculateGeneralRanking();
     console.log("Classement général calculé:", generalRanking);
@@ -1904,7 +1899,7 @@ try {
     }
 
     console.log("Création d'une nouvelle instance de jsPDF");
-    const doc = new window.jsPDF();
+    const doc = new jsPDF();
 
     // Configuration
     const pageWidth = doc.internal.pageSize.width;
@@ -2047,6 +2042,9 @@ try {
     showNotification('Classement général exporté en PDF !', 'success');
     console.log("Fin de la fonction exportGeneralRankingToPDF");
 }
+
+window.exportGeneralRanking = exportGeneralRanking;
+window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
 
 window.exportGeneralRanking = exportGeneralRanking;
 window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
