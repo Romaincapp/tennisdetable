@@ -1878,7 +1878,170 @@ try {
         
         showNotification('Classement général exporté !', 'success');
     }
+
+    function exportGeneralRankingToPDF() {
+        // Vérifier si jsPDF est disponible
+        if (typeof window.jsPDF === 'undefined') {
+            alert('❌ Bibliothèque PDF non chargée !\n\nVeuillez ajouter jsPDF au HTML :\n<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>');
+            return;
+        }
+        
+        const generalRanking = calculateGeneralRanking();
+        const generalStats = calculateGeneralStats();
+        
+        if (!generalRanking.hasData) {
+            alert('Aucun classement général disponible pour l\'export PDF');
+            return;
+        }
+        
+        const { jsPDF } = window.jsPDF;
+        const doc = new jsPDF();
+        
+        // Configuration
+        const pageWidth = doc.internal.pageSize.width;
+        const marginLeft = 15;
+        const marginRight = 15;
+        const contentWidth = pageWidth - marginLeft - marginRight;
+        let yPosition = 20;
+        
+        // HEADER
+        doc.setFontSize(20);
+        doc.setTextColor(52, 73, 94); // Bleu foncé
+        doc.text('🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT', pageWidth/2, yPosition, { align: 'center' });
+        
+        yPosition += 15;
+        doc.setFontSize(12);
+        doc.setTextColor(127, 140, 141); // Gris
+        const currentDate = new Date().toLocaleDateString('fr-FR', { 
+            year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+        doc.text(`Généré le ${currentDate}`, pageWidth/2, yPosition, { align: 'center' });
+        
+        // STATISTIQUES GÉNÉRALES
+        yPosition += 20;
+        doc.setFontSize(14);
+        doc.setTextColor(52, 73, 94);
+        doc.text('📊 STATISTIQUES DU CHAMPIONNAT', marginLeft, yPosition);
+        
+        yPosition += 10;
+        doc.setFontSize(10);
+        doc.setTextColor(44, 62, 80);
+        
+        const statsText = [
+            `• ${generalStats.totalDays} journées disputées`,
+            `• ${generalStats.totalPlayers} joueurs uniques`,
+            `• ${generalStats.totalMatches} matchs programmés`,
+            `• ${generalStats.completedMatches} matchs terminés`
+        ];
+        
+        statsText.forEach(stat => {
+            doc.text(stat, marginLeft + 5, yPosition);
+            yPosition += 6;
+        });
+        
+        // CLASSEMENTS PAR DIVISION
+        yPosition += 10;
+        
+        for (let division = 1; division <= 3; division++) {
+            if (generalRanking.divisions[division].length === 0) continue;
+            
+            // Titre de division
+            const divisionIcon = division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉';
+            doc.setFontSize(12);
+            doc.setTextColor(230, 126, 34); // Orange
+            doc.text(`${divisionIcon} DIVISION ${division}`, marginLeft, yPosition);
+            
+            yPosition += 8;
+            
+            // En-têtes du tableau
+            doc.setFontSize(9);
+            doc.setTextColor(52, 73, 94);
+            const headers = ['Rang', 'Joueur', 'Points', 'Journées', 'V/D', '% Vict.', 'Sets'];
+            const colWidths = [15, 50, 18, 20, 20, 18, 25];
+            let xPos = marginLeft;
+            
+            headers.forEach((header, i) => {
+                doc.text(header, xPos, yPosition);
+                xPos += colWidths[i];
+            });
+            
+            yPosition += 2;
+            // Ligne de séparation
+            doc.setDrawColor(189, 195, 199);
+            doc.line(marginLeft, yPosition, marginLeft + contentWidth, yPosition);
+            yPosition += 5;
+            
+            // Données des joueurs
+            doc.setFontSize(8);
+            doc.setTextColor(44, 62, 80);
+            
+            generalRanking.divisions[division].forEach((player, index) => {
+                if (yPosition > 270) { // Nouvelle page si nécessaire
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                
+                xPos = marginLeft;
+                const rank = `${index + 1}`;
+                const name = player.name.length > 20 ? player.name.substring(0, 17) + '...' : player.name;
+                const points = `${player.totalPoints}`;
+                const days = `${player.daysPlayed}`;
+                const victories = `${player.totalWins}/${player.totalLosses}`;
+                const winRate = `${player.avgWinRate}%`;
+                const sets = `${player.totalSetsWon}/${player.totalSetsLost}`;
+                
+                const rowData = [rank, name, points, days, victories, winRate, sets];
+                
+                // Couleur de fond pour le podium
+                if (index < 3) {
+                    const colors = [
+                        [255, 215, 0, 0.3], // Or
+                        [192, 192, 192, 0.3], // Argent  
+                        [205, 127, 50, 0.3]  // Bronze
+                    ];
+                    doc.setFillColor(...colors[index]);
+                    doc.rect(marginLeft - 2, yPosition - 3, contentWidth + 4, 6, 'F');
+                }
+                
+                rowData.forEach((data, i) => {
+                    if (i === 0 && index < 3) { // Rang avec médaille
+                        doc.setTextColor(184, 134, 11); // Or foncé
+                        doc.setFont(undefined, 'bold');
+                    } else {
+                        doc.setTextColor(44, 62, 80);
+                        doc.setFont(undefined, 'normal');
+                    }
+                    doc.text(data, xPos, yPosition);
+                    xPos += colWidths[i];
+                });
+                
+                yPosition += 6;
+            });
+            
+            yPosition += 10;
+        }
+        
+        // FOOTER
+        if (yPosition > 250) {
+            doc.addPage();
+            yPosition = 20;
+        }
+        
+        yPosition = 280;
+        doc.setFontSize(8);
+        doc.setTextColor(149, 165, 166);
+        doc.text('Championnat Tennis de Table - Gestion Esenca Sport', pageWidth/2, yPosition, { align: 'center' });
+        doc.text(`Système de points: Victoire = 3pts, Défaite = 1pt`, pageWidth/2, yPosition + 4, { align: 'center' });
+        
+        // Sauvegarde
+        const fileName = `Classement_General_${new Date().toISOString().slice(0,10)}.pdf`;
+        doc.save(fileName);
+        
+        showNotification('Classement général exporté en PDF !', 'success');
+    }
     window.exportGeneralRanking = exportGeneralRanking;
+    window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
 
     // EXPORT / IMPORT
     function exportChampionship() {
