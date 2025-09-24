@@ -1896,152 +1896,383 @@ try {
         return;
     }
 
-        // Configuration
-    const pageWidth = doc.internal.pageSize.width;
-    const marginLeft = 15;
-    const marginRight = 15;
-    const contentWidth = pageWidth - marginLeft - marginRight;
-    let yPosition = 20;
-
-    console.log("Configuration de la page terminée");
-
-    // HEADER
-    console.log("Ajout de l'en-tête");
-    doc.setFontSize(20);
-    doc.setTextColor(52, 73, 94); // Bleu foncé
-    doc.text('🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT', pageWidth/2, yPosition, { align: 'center' });
-    yPosition += 15;
-
-    doc.setFontSize(12);
-    doc.setTextColor(127, 140, 141); // Gris
+    // Créer le contenu HTML optimisé pour l'impression
     const currentDate = new Date().toLocaleDateString('fr-FR', {
         year: 'numeric', month: 'long', day: 'numeric',
         hour: '2-digit', minute: '2-digit'
     });
-    doc.text(`Généré le ${currentDate}`, pageWidth/2, yPosition, { align: 'center' });
 
-    // STATISTIQUES GÉNÉRALES
-    console.log("Ajout des statistiques générales");
-    yPosition += 20;
-    doc.setFontSize(14);
-    doc.setTextColor(52, 73, 94);
-    doc.text('📊 STATISTIQUES DU CHAMPIONNAT', marginLeft, yPosition);
-    yPosition += 10;
+    let htmlContent = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Classement Général - Championnat Tennis de Table</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    color: #333;
+                    background: white;
+                    padding: 20px;
+                }
+                
+                .header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid #e74c3c;
+                }
+                
+                .header h1 {
+                    font-size: 24px;
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                }
+                
+                .header .date {
+                    color: #7f8c8d;
+                    font-size: 14px;
+                }
+                
+                .stats-section {
+                    background: #f8f9fa;
+                    padding: 20px;
+                    margin-bottom: 30px;
+                    border-radius: 8px;
+                    border: 1px solid #ddd;
+                }
+                
+                .stats-title {
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin-bottom: 15px;
+                }
+                
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 15px;
+                }
+                
+                .stat-item {
+                    text-align: center;
+                    padding: 10px;
+                    background: white;
+                    border-radius: 5px;
+                    border: 1px solid #eee;
+                }
+                
+                .stat-number {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #e74c3c;
+                    display: block;
+                }
+                
+                .stat-label {
+                    font-size: 11px;
+                    color: #666;
+                    margin-top: 5px;
+                }
+                
+                .division {
+                    margin-bottom: 40px;
+                    page-break-inside: avoid;
+                }
+                
+                .division-title {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #e74c3c;
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: #fff3cd;
+                    border-radius: 5px;
+                    text-align: center;
+                }
+                
+                .ranking-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+                
+                .ranking-table th {
+                    background: #2c3e50;
+                    color: white;
+                    padding: 12px 8px;
+                    text-align: left;
+                    font-weight: bold;
+                    font-size: 11px;
+                    border: 1px solid #34495e;
+                }
+                
+                .ranking-table td {
+                    padding: 10px 8px;
+                    border: 1px solid #ddd;
+                    font-size: 11px;
+                }
+                
+                .ranking-table tr:nth-child(even) {
+                    background: #f8f9fa;
+                }
+                
+                .ranking-table tr:hover {
+                    background: #e8f4f8;
+                }
+                
+                .rank-position {
+                    font-weight: bold;
+                    text-align: center;
+                    width: 50px;
+                }
+                
+                .rank-gold {
+                    background: rgba(255, 215, 0, 0.3);
+                    color: #b8860b;
+                    font-weight: bold;
+                }
+                
+                .rank-silver {
+                    background: rgba(192, 192, 192, 0.3);
+                    color: #666;
+                    font-weight: bold;
+                }
+                
+                .rank-bronze {
+                    background: rgba(205, 127, 50, 0.3);
+                    color: #cd7f32;
+                    font-weight: bold;
+                }
+                
+                .player-name {
+                    font-weight: 600;
+                    color: #2c3e50;
+                }
+                
+                .points-total {
+                    font-weight: bold;
+                    color: #e74c3c;
+                    text-align: center;
+                }
+                
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 2px solid #ddd;
+                    text-align: center;
+                    color: #7f8c8d;
+                    font-size: 11px;
+                }
+                
+                .export-info {
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    background: #3498db;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    z-index: 1000;
+                    max-width: 300px;
+                }
+                
+                .export-info h3 {
+                    margin-bottom: 10px;
+                    font-size: 14px;
+                }
+                
+                .export-info p {
+                    font-size: 12px;
+                    line-height: 1.3;
+                    margin-bottom: 8px;
+                }
+                
+                .export-info .shortcut {
+                    background: rgba(255,255,255,0.2);
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-weight: bold;
+                }
+                
+                @media print {
+                    .export-info {
+                        display: none !important;
+                    }
+                    
+                    body {
+                        padding: 10px;
+                        font-size: 11px;
+                    }
+                    
+                    .division {
+                        page-break-inside: avoid;
+                        margin-bottom: 30px;
+                    }
+                    
+                    .ranking-table {
+                        page-break-inside: avoid;
+                    }
+                    
+                    .header h1 {
+                        font-size: 20px;
+                    }
+                    
+                    .stats-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+                
+                @page {
+                    margin: 1.5cm;
+                    size: A4 portrait;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="export-info">
+                <h3>📄 Export PDF</h3>
+                <p>Pour sauvegarder en PDF :</p>
+                <p>• <span class="shortcut">Ctrl+P</span> (ou Cmd+P sur Mac)</p>
+                <p>• Choisir "Enregistrer au format PDF"</p>
+                <p>• Cliquer sur "Enregistrer"</p>
+            </div>
+            
+            <div class="header">
+                <h1>🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT</h1>
+                <div class="date">Généré le ${currentDate}</div>
+            </div>
+            
+            <div class="stats-section">
+                <div class="stats-title">📊 STATISTIQUES DU CHAMPIONNAT</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">${generalStats.totalDays}</span>
+                        <div class="stat-label">Journées disputées</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${generalStats.totalPlayers}</span>
+                        <div class="stat-label">Joueurs uniques</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${generalStats.totalMatches}</span>
+                        <div class="stat-label">Matchs programmés</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${generalStats.completedMatches}</span>
+                        <div class="stat-label">Matchs terminés</div>
+                    </div>
+                </div>
+            </div>
+    `;
 
-    doc.setFontSize(10);
-    doc.setTextColor(44, 62, 80);
-    const statsText = [
-        `• ${generalStats.totalDays} journées disputées`,
-        `• ${generalStats.totalPlayers} joueurs uniques`,
-        `• ${generalStats.totalMatches} matchs programmés`,
-        `• ${generalStats.completedMatches} matchs terminés`
-    ];
-    statsText.forEach(stat => {
-        doc.text(stat, marginLeft + 5, yPosition);
-        yPosition += 6;
-    });
-
-    // CLASSEMENTS PAR DIVISION
-    console.log("Ajout des classements par division");
-    yPosition += 10;
+    // Ajouter les classements par division
     for (let division = 1; division <= 3; division++) {
         if (generalRanking.divisions[division].length === 0) continue;
 
-        // Titre de division
         const divisionIcon = division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉';
-        doc.setFontSize(12);
-        doc.setTextColor(230, 126, 34); // Orange
-        doc.text(`${divisionIcon} DIVISION ${division}`, marginLeft, yPosition);
-        yPosition += 8;
+        const divisionName = `${divisionIcon} DIVISION ${division}`;
+        
+        htmlContent += `
+            <div class="division">
+                <div class="division-title">${divisionName}</div>
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>Rang</th>
+                            <th>Joueur</th>
+                            <th>Points Total</th>
+                            <th>Journées</th>
+                            <th>Victoires/Défaites</th>
+                            <th>% Victoires</th>
+                            <th>Sets G/P</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
 
-        // En-têtes du tableau
-        doc.setFontSize(9);
-        doc.setTextColor(52, 73, 94);
-        const headers = ['Rang', 'Joueur', 'Points', 'Journées', 'V/D', '% Vict.', 'Sets'];
-        const colWidths = [15, 50, 18, 20, 20, 18, 25];
-        let xPos = marginLeft;
-        headers.forEach((header, i) => {
-            doc.text(header, xPos, yPosition);
-            xPos += colWidths[i];
-        });
-        yPosition += 2;
-
-        // Ligne de séparation
-        doc.setDrawColor(189, 195, 199);
-        doc.line(marginLeft, yPosition, marginLeft + contentWidth, yPosition);
-        yPosition += 5;
-
-        // Données des joueurs
-        doc.setFontSize(8);
-        doc.setTextColor(44, 62, 80);
         generalRanking.divisions[division].forEach((player, index) => {
-            if (yPosition > 270) { // Nouvelle page si nécessaire
-                doc.addPage();
-                yPosition = 20;
-            }
-            xPos = marginLeft;
-            const rank = `${index + 1}`;
-            const name = player.name.length > 20 ? player.name.substring(0, 17) + '...' : player.name;
-            const points = `${player.totalPoints}`;
-            const days = `${player.daysPlayed}`;
-            const victories = `${player.totalWins}/${player.totalLosses}`;
-            const winRate = `${player.avgWinRate}%`;
-            const sets = `${player.totalSetsWon}/${player.totalSetsLost}`;
-            const rowData = [rank, name, points, days, victories, winRate, sets];
-
-            // Couleur de fond pour le podium
-            if (index < 3) {
-                const colors = [
-                    [255, 215, 0, 0.3], // Or
-                    [192, 192, 192, 0.3], // Argent
-                    [205, 127, 50, 0.3]  // Bronze
-                ];
-                doc.setFillColor(...colors[index]);
-                doc.rect(marginLeft - 2, yPosition - 3, contentWidth + 4, 6, 'F');
-            }
-
-            rowData.forEach((data, i) => {
-                if (i === 0 && index < 3) { // Rang avec médaille
-                    doc.setTextColor(184, 134, 11); // Or foncé
-                    doc.setFont(undefined, 'bold');
-                } else {
-                    doc.setTextColor(44, 62, 80);
-                    doc.setFont(undefined, 'normal');
-                }
-                doc.text(data, xPos, yPosition);
-                xPos += colWidths[i];
-            });
-            yPosition += 6;
+            let rankClass = '';
+            if (index === 0) rankClass = 'rank-gold';
+            else if (index === 1) rankClass = 'rank-silver';
+            else if (index === 2) rankClass = 'rank-bronze';
+            
+            htmlContent += `
+                <tr>
+                    <td class="rank-position ${rankClass}">${index + 1}</td>
+                    <td class="player-name">${player.name}</td>
+                    <td class="points-total">${player.totalPoints}</td>
+                    <td style="text-align: center;">${player.daysPlayed}</td>
+                    <td style="text-align: center;">${player.totalWins}/${player.totalLosses}</td>
+                    <td style="text-align: center;">${player.avgWinRate}%</td>
+                    <td style="text-align: center;">${player.totalSetsWon}/${player.totalSetsLost}</td>
+                </tr>
+            `;
         });
-        yPosition += 10;
+
+        htmlContent += `
+                    </tbody>
+                </table>
+            </div>
+        `;
     }
 
-    // FOOTER
-    console.log("Ajout du pied de page");
-    if (yPosition > 250) {
-        doc.addPage();
-        yPosition = 20;
+    // Ajouter le pied de page
+    htmlContent += `
+            <div class="footer">
+                <p><strong>Championnat Tennis de Table - Gestion Esenca Sport</strong></p>
+                <p>Système de points: Victoire = 3pts, Défaite = 1pt</p>
+                <p>Document généré automatiquement le ${currentDate}</p>
+            </div>
+        </body>
+        </html>
+    `;
+
+    // Ouvrir dans une nouvelle fenêtre
+    const newWindow = window.open('', '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');
+    
+    if (!newWindow) {
+        alert('Impossible d\'ouvrir une nouvelle fenêtre. Veuillez autoriser les pop-ups pour ce site.');
+        return;
     }
-    yPosition = 280;
-    doc.setFontSize(8);
-    doc.setTextColor(149, 165, 166);
-    doc.text('Championnat Tennis de Table - Gestion Esenca Sport', pageWidth/2, yPosition, { align: 'center' });
-    doc.text(`Système de points: Victoire = 3pts, Défaite = 1pt`, pageWidth/2, yPosition + 4, { align: 'center' });
 
-    // Sauvegarde
-    console.log("Sauvegarde du PDF");
-    const fileName = `Classement_General_${new Date().toISOString().slice(0,10)}.pdf`;
-    doc.save(fileName);
-    console.log("PDF sauvegardé avec le nom:", fileName);
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
+    
+    // Attendre que le contenu soit chargé puis proposer l'impression
+    setTimeout(() => {
+        newWindow.focus();
+        
+        // Afficher une alerte dans la nouvelle fenêtre
+        const alertMessage = "✅ Page d'export créée avec succès !\n\n" +
+                            "Pour enregistrer en PDF :\n" +
+                            "1. Appuyez sur Ctrl+P (ou Cmd+P sur Mac)\n" +
+                            "2. Choisissez 'Enregistrer au format PDF'\n" +
+                            "3. Cliquez sur 'Enregistrer'\n\n" +
+                            "Voulez-vous ouvrir la boîte de dialogue d'impression maintenant ?";
+        
+        if (newWindow.confirm(alertMessage)) {
+            newWindow.print();
+        }
+    }, 500);
 
-    showNotification('Classement général exporté en PDF !', 'success');
-    console.log("Fin de la fonction exportGeneralRankingToPDF");
+    console.log("Page d'export PDF créée avec succès");
+    showNotification('Page d\'export PDF ouverte dans un nouvel onglet !', 'success');
 }
 
-window.exportGeneralRanking = exportGeneralRanking;
-window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
-
-window.exportGeneralRanking = exportGeneralRanking;
+// Assigner la fonction à l'objet window pour qu'elle soit accessible globalement
 window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
 
 
