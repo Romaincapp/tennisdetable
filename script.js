@@ -2255,8 +2255,29 @@ try {
                     }
                     
                     .division-title {
+                        background: #f8f9fa !important;
+                        color: #2c3e50 !important;
+                        border: 2px solid #dee2e6 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                    }
+                    
+                    .division-1 .division-title {
+                        background: #f8d7da !important;
+                        color: #721c24 !important;
+                        border-color: #e74c3c !important;
+                    }
+                    
+                    .division-2 .division-title {
+                        background: #fff3cd !important;
+                        color: #856404 !important;
+                        border-color: #f39c12 !important;
+                    }
+                    
+                    .division-3 .division-title {
+                        background: #d1ecf1 !important;
+                        color: #155724 !important;
+                        border-color: #27ae60 !important;
                     }
                     
                     .ranking-table {
@@ -2347,17 +2368,17 @@ try {
         const divisionName = `${divisionIcon} DIVISION ${division}`;
         
         htmlContent += `
-            <div class="division">
+            <div class="division division-${division}">
                 <div class="division-title">${divisionName}</div>
                 <table class="ranking-table">
                     <thead>
                         <tr>
                             <th>Rang</th>
                             <th>Joueur</th>
-                            <th>Points Total</th>
+                            <th>Points</th>
                             <th>Journées</th>
-                            <th>Victoires/Défaites</th>
-                            <th>% Victoires</th>
+                            <th>V/D</th>
+                            <th>% Vict.</th>
                             <th>Sets G/P</th>
                         </tr>
                     </thead>
@@ -2393,12 +2414,13 @@ try {
     // Ajouter le pied de page
     htmlContent += `
             <div class="footer">
-                <p><strong>Championnat Tennis de Table - Gestion Esenca Sport</strong></p>
+                <p>Championnat Tennis de Table - Gestion Esenca Sport</p>
                 <p>Système de points: Victoire = 3pts, Défaite = 1pt</p>
                 <p>Document généré automatiquement le ${currentDate}</p>
             </div>
-        </body>
-        </html>
+        </div>
+    </body>
+    </html>
     `;
 
     // Ouvrir dans une nouvelle fenêtre
