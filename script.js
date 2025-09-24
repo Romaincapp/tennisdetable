@@ -1,5 +1,3 @@
-import { jsPDF } from 'jspdf';
-
 console.log("Script démarré");
 
 try {
