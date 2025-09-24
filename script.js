@@ -1917,194 +1917,286 @@ try {
                 }
                 
                 body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    font-family: 'Arial', 'Helvetica', sans-serif;
                     font-size: 12px;
-                    line-height: 1.4;
-                    color: #333;
+                    line-height: 1.5;
+                    color: #2c3e50;
+                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                    padding: 25px;
+                }
+                
+                .container {
                     background: white;
-                    padding: 20px;
+                    border-radius: 15px;
+                    padding: 30px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                    max-width: 1000px;
+                    margin: 0 auto;
                 }
                 
                 .header {
                     text-align: center;
-                    margin-bottom: 30px;
-                    padding-bottom: 20px;
-                    border-bottom: 3px solid #e74c3c;
+                    margin-bottom: 35px;
+                    padding: 25px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border-radius: 12px;
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                .header::before {
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    right: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: repeating-linear-gradient(
+                        45deg,
+                        transparent,
+                        transparent 10px,
+                        rgba(255,255,255,0.05) 10px,
+                        rgba(255,255,255,0.05) 20px
+                    );
                 }
                 
                 .header h1 {
-                    font-size: 24px;
-                    color: #2c3e50;
-                    margin-bottom: 10px;
+                    font-size: 28px;
+                    margin-bottom: 12px;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                    position: relative;
+                    z-index: 1;
                 }
                 
                 .header .date {
-                    color: #7f8c8d;
                     font-size: 14px;
+                    opacity: 0.9;
+                    position: relative;
+                    z-index: 1;
                 }
                 
                 .stats-section {
-                    background: #f8f9fa;
-                    padding: 20px;
-                    margin-bottom: 30px;
-                    border-radius: 8px;
-                    border: 1px solid #ddd;
+                    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+                    padding: 25px;
+                    margin-bottom: 35px;
+                    border-radius: 12px;
+                    border: 2px solid #f39c12;
+                    position: relative;
                 }
                 
                 .stats-title {
-                    font-size: 16px;
+                    font-size: 18px;
                     font-weight: bold;
-                    color: #2c3e50;
-                    margin-bottom: 15px;
+                    color: #e67e22;
+                    margin-bottom: 20px;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
                 }
                 
                 .stats-grid {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    gap: 15px;
+                    gap: 20px;
                 }
                 
                 .stat-item {
                     text-align: center;
-                    padding: 10px;
-                    background: white;
-                    border-radius: 5px;
-                    border: 1px solid #eee;
+                    padding: 15px;
+                    background: rgba(255,255,255,0.9);
+                    border-radius: 10px;
+                    border: 2px solid #f39c12;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    transition: transform 0.3s ease;
+                }
+                
+                .stat-item:hover {
+                    transform: translateY(-2px);
                 }
                 
                 .stat-number {
-                    font-size: 20px;
+                    font-size: 24px;
                     font-weight: bold;
-                    color: #e74c3c;
+                    color: #d35400;
                     display: block;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
                 }
                 
                 .stat-label {
                     font-size: 11px;
-                    color: #666;
-                    margin-top: 5px;
+                    color: #8e44ad;
+                    margin-top: 8px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
                 }
                 
                 .division {
-                    margin-bottom: 40px;
+                    margin-bottom: 45px;
                     page-break-inside: avoid;
+                    background: white;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
                 }
                 
                 .division-title {
-                    font-size: 18px;
+                    font-size: 20px;
                     font-weight: bold;
-                    color: #e74c3c;
-                    margin-bottom: 15px;
-                    padding: 10px;
-                    background: #fff3cd;
-                    border-radius: 5px;
+                    color: white;
+                    margin-bottom: 0;
+                    padding: 18px;
                     text-align: center;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                    letter-spacing: 1px;
+                }
+                
+                .division-1 .division-title {
+                    background: linear-gradient(135deg, #e74c3c, #c0392b);
+                }
+                
+                .division-2 .division-title {
+                    background: linear-gradient(135deg, #f39c12, #e67e22);
+                }
+                
+                .division-3 .division-title {
+                    background: linear-gradient(135deg, #27ae60, #229954);
                 }
                 
                 .ranking-table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 20px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    margin-bottom: 0;
+                    font-size: 12px;
                 }
                 
                 .ranking-table th {
-                    background: #2c3e50;
+                    background: linear-gradient(135deg, #34495e, #2c3e50);
                     color: white;
-                    padding: 12px 8px;
-                    text-align: left;
+                    padding: 15px 10px;
+                    text-align: center;
                     font-weight: bold;
                     font-size: 11px;
-                    border: 1px solid #34495e;
+                    border: 1px solid #2c3e50;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
                 }
                 
                 .ranking-table td {
-                    padding: 10px 8px;
-                    border: 1px solid #ddd;
-                    font-size: 11px;
+                    padding: 12px 10px;
+                    border: 1px solid #ecf0f1;
+                    font-size: 12px;
+                    text-align: center;
                 }
                 
                 .ranking-table tr:nth-child(even) {
-                    background: #f8f9fa;
+                    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
                 }
                 
                 .ranking-table tr:hover {
-                    background: #e8f4f8;
+                    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+                    transform: scale(1.01);
+                    transition: all 0.2s ease;
                 }
                 
                 .rank-position {
                     font-weight: bold;
-                    text-align: center;
-                    width: 50px;
+                    width: 60px;
+                    font-size: 14px;
                 }
                 
                 .rank-gold {
-                    background: rgba(255, 215, 0, 0.3);
-                    color: #b8860b;
+                    background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
+                    color: #b8860b !important;
                     font-weight: bold;
+                    box-shadow: inset 0 2px 4px rgba(184, 134, 11, 0.3);
                 }
                 
                 .rank-silver {
-                    background: rgba(192, 192, 192, 0.3);
-                    color: #666;
+                    background: linear-gradient(135deg, #c0c0c0, #a8a8a8) !important;
+                    color: #666 !important;
                     font-weight: bold;
+                    box-shadow: inset 0 2px 4px rgba(102, 102, 102, 0.3);
                 }
                 
                 .rank-bronze {
-                    background: rgba(205, 127, 50, 0.3);
-                    color: #cd7f32;
+                    background: linear-gradient(135deg, #cd7f32, #b8722c) !important;
+                    color: #8b4513 !important;
                     font-weight: bold;
+                    box-shadow: inset 0 2px 4px rgba(139, 69, 19, 0.3);
                 }
                 
                 .player-name {
                     font-weight: 600;
                     color: #2c3e50;
+                    text-align: left;
+                    padding-left: 15px;
+                    font-size: 13px;
                 }
                 
                 .points-total {
                     font-weight: bold;
                     color: #e74c3c;
-                    text-align: center;
+                    font-size: 14px;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
                 }
                 
                 .footer {
                     margin-top: 40px;
-                    padding-top: 20px;
-                    border-top: 2px solid #ddd;
+                    padding: 25px;
+                    background: linear-gradient(135deg, #34495e, #2c3e50);
+                    color: white;
                     text-align: center;
-                    color: #7f8c8d;
-                    font-size: 11px;
+                    border-radius: 12px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                }
+                
+                .footer p {
+                    margin-bottom: 8px;
+                    font-size: 12px;
+                }
+                
+                .footer p:first-child {
+                    font-weight: bold;
+                    font-size: 14px;
+                    color: #3498db;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
                 }
                 
                 .export-info {
                     position: fixed;
-                    top: 10px;
-                    right: 10px;
-                    background: #3498db;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #3498db, #2980b9);
                     color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    padding: 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
                     z-index: 1000;
-                    max-width: 300px;
+                    max-width: 320px;
+                    border: 2px solid rgba(255,255,255,0.2);
                 }
                 
                 .export-info h3 {
-                    margin-bottom: 10px;
-                    font-size: 14px;
+                    margin-bottom: 15px;
+                    font-size: 16px;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
                 }
                 
                 .export-info p {
-                    font-size: 12px;
-                    line-height: 1.3;
-                    margin-bottom: 8px;
+                    font-size: 13px;
+                    line-height: 1.4;
+                    margin-bottom: 10px;
                 }
                 
                 .export-info .shortcut {
-                    background: rgba(255,255,255,0.2);
-                    padding: 2px 6px;
-                    border-radius: 3px;
+                    background: rgba(255,255,255,0.25);
+                    padding: 4px 8px;
+                    border-radius: 5px;
                     font-weight: bold;
+                    border: 1px solid rgba(255,255,255,0.3);
                 }
                 
                 @media print {
@@ -2113,25 +2205,93 @@ try {
                     }
                     
                     body {
-                        padding: 10px;
+                        background: white !important;
+                        padding: 15px;
                         font-size: 11px;
+                    }
+                    
+                    .container {
+                        box-shadow: none !important;
+                        border-radius: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                    }
+                    
+                    .header {
+                        background: #2c3e50 !important;
+                        color: white !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        border-radius: 0 !important;
+                        margin-bottom: 25px;
+                    }
+                    
+                    .header::before {
+                        display: none !important;
+                    }
+                    
+                    .stats-section {
+                        background: #f8f9fa !important;
+                        border: 2px solid #dee2e6 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        border-radius: 0 !important;
+                        margin-bottom: 25px;
+                    }
+                    
+                    .stat-item {
+                        background: white !important;
+                        border: 1px solid #dee2e6 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     
                     .division {
                         page-break-inside: avoid;
-                        margin-bottom: 30px;
+                        margin-bottom: 25px;
+                        box-shadow: none !important;
+                        border: 1px solid #dee2e6 !important;
+                        border-radius: 0 !important;
+                    }
+                    
+                    .division-title {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     
                     .ranking-table {
                         page-break-inside: avoid;
+                        font-size: 10px;
+                    }
+                    
+                    .ranking-table th {
+                        background: #2c3e50 !important;
+                        color: white !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    .rank-gold, .rank-silver, .rank-bronze {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     
                     .header h1 {
-                        font-size: 20px;
+                        font-size: 22px;
                     }
                     
                     .stats-grid {
                         grid-template-columns: repeat(2, 1fr);
+                        gap: 10px;
+                    }
+                    
+                    .footer {
+                        background: #34495e !important;
+                        color: white !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        border-radius: 0 !important;
+                        margin-top: 30px;
                     }
                 }
                 
@@ -2150,32 +2310,33 @@ try {
                 <p>• Cliquer sur "Enregistrer"</p>
             </div>
             
-            <div class="header">
-                <h1>🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT</h1>
-                <div class="date">Généré le ${currentDate}</div>
-            </div>
-            
-            <div class="stats-section">
-                <div class="stats-title">📊 STATISTIQUES DU CHAMPIONNAT</div>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-number">${generalStats.totalDays}</span>
-                        <div class="stat-label">Journées disputées</div>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">${generalStats.totalPlayers}</span>
-                        <div class="stat-label">Joueurs uniques</div>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">${generalStats.totalMatches}</span>
-                        <div class="stat-label">Matchs programmés</div>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">${generalStats.completedMatches}</span>
-                        <div class="stat-label">Matchs terminés</div>
+            <div class="container">
+                <div class="header">
+                    <h1>🏆 CLASSEMENT GÉNÉRAL DU CHAMPIONNAT</h1>
+                    <div class="date">Généré le ${currentDate}</div>
+                </div>
+                
+                <div class="stats-section">
+                    <div class="stats-title">📊 STATISTIQUES DU CHAMPIONNAT</div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-number">${generalStats.totalDays}</span>
+                            <div class="stat-label">Journées disputées</div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${generalStats.totalPlayers}</span>
+                            <div class="stat-label">Joueurs uniques</div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${generalStats.totalMatches}</span>
+                            <div class="stat-label">Matchs programmés</div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${generalStats.completedMatches}</span>
+                            <div class="stat-label">Matchs terminés</div>
+                        </div>
                     </div>
                 </div>
-            </div>
     `;
 
     // Ajouter les classements par division
@@ -2274,7 +2435,6 @@ try {
 
 // Assigner la fonction à l'objet window pour qu'elle soit accessible globalement
 window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
-
 
     // EXPORT / IMPORT
     function exportChampionship() {
