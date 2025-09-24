@@ -1896,10 +1896,7 @@ try {
         return;
     }
 
-    console.log("Création d'une nouvelle instance de jsPDF");
-    const doc = new jsPDF();
-
-    // Configuration
+        // Configuration
     const pageWidth = doc.internal.pageSize.width;
     const marginLeft = 15;
     const marginRight = 15;

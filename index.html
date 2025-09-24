@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Championnat Tennis de TableV12</title>
     <link rel="stylesheet"  href="styles.css">
-    
-      
+
 </head>
 <body>
     <div class="container">
@@ -14,12 +13,12 @@
             <h1>🏆 Championnat Tennis de Table V12.1</h1>
             <p>Gestion complète multi-journées avec classement général, avec Esenca Sport ; ça va fort !</p>
         </div>
-        
+
         <!-- ONGLETS -->
         <div class="tabs-container">
             <div class="tabs" id="tabs">
                 <button class="tab active" onclick="switchTab(1)" data-day="1">
-                    Journée 1    
+                    Journée 1
                 </button>
                  <button class="add-day-btn" onclick="addNewDay()" title="Ajouter une journée">+</button>
                 <button class="tab general-ranking" onclick="switchToGeneralRanking()" data-tab="general">
@@ -27,7 +26,7 @@
                 </button>
             </div>
         </div>
-        
+
         <div class="content">
             <!-- CONTENU JOURNÉE -->
             <div class="tab-content day-content active" id="day-1">
@@ -36,7 +35,7 @@
                     <div style="text-align: center; margin: 15px 0; padding: 15px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-radius: 8px; border: 3px solid #f39c12;">
                     <strong style="color: #e67e22; font-size: 18px;">⚠️ CHOISISSEZ D'ABORD LA JOURNÉE DE DESTINATION !</strong>
                     </div>
-                    
+
                     <div class="input-group" style="align-items: end;">
                         <input type="text" id="playerName" placeholder="Nom du joueur" style="flex: 1; min-width: 200px;">
                         <select id="playerDivision">
@@ -52,7 +51,7 @@
     </div>
     <button class="btn btn-success" onclick="addPlayer()">Ajouter Joueur</button>
 </div>
-                    
+
                     <div class="import-section">
                         <div class="import-box">
                             <h4>📁 Import fichier Excel/CSV</h4>
@@ -72,7 +71,7 @@
                                 </label>
                             </div>
                         </div>
-                        
+
                         <div class="import-box">
                             <h4>📋 Copier-coller par division</h4>
                             <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 15px;">
@@ -96,11 +95,11 @@
                                 </div>
                         </div>
                     </div>
-                    
+
                     <button class="btn" onclick="generateMatchesForDay()" style="font-size: 18px; padding: 15px 25px; display: block; margin: 20px auto;">
                         🎯 Générer les Matchs (Round-Robin)
                     </button>
-                    
+
                     <div class="guide-box">
                         <div class="guide-title">
                             💡 Guide d'utilisation
@@ -122,7 +121,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="control-buttons">
                         <button class="btn btn-success" onclick="updateRankings()">
                             🏆 Classements
@@ -136,14 +135,14 @@
                         <button class="btn btn-danger" onclick="clearAllData()">
                             🗑️ Réinitialiser
                         </button>
-                        
+
                     </div>
                 </div>
-                
+
                 <div class="divisions" id="divisions-1">
                     <!-- Les divisions seront générées dynamiquement -->
                 </div>
-                
+
                 <div class="rankings-section" id="rankings-1" style="display: none;">
                     <div class="rankings-header">
                         <div class="rankings-title">🏆 Classements Journée 1</div>
@@ -154,22 +153,22 @@
                     </div>
                     <div id="rankingsContent-1"></div>
                 </div>
-                
+
                 <div class="stats" id="stats-1" style="display: none;">
                     <h3>📊 Statistiques Journée 1</h3>
                     <div class="stats-grid" id="statsContent-1"></div>
                 </div>
             </div>
-            
+
             <!-- CLASSEMENT GÉNÉRAL -->
             <div class="tab-content general-content" id="general-ranking">
                 <div class="section general-ranking-section">
                     <h2>🏆 Classement Général du Championnat</h2>
-                    
+
                     <div class="general-stats" id="generalStats">
                         <!-- Stats générales seront générées ici -->
                     </div>
-                    
+
                     <div class="control-buttons" style="margin-bottom: 30px;">
                         <button class="btn btn-warning" onclick="updateGeneralRanking()">
                             🔄 Mettre à jour Classement Général
@@ -184,7 +183,7 @@
                         📄 Exporter HTML
                         </button>
                     </div>
-                    
+
                     <div id="generalRankingContent">
                         <div class="empty-state">
                             Terminez au moins un match dans une journée pour voir le classement général
@@ -223,7 +222,7 @@
             <p style="margin-bottom: 15px; color: #7f8c8d;">
                 Collez la liste des noms (un par ligne) pour la <strong id="selectedDivision">Division 1</strong> :
             </p>
-            <textarea id="bulkText" placeholder="Joueur 1&#10;Joueur 2&#10;Joueur 3&#10;..." 
+            <textarea id="bulkText" placeholder="Joueur 1&#10;Joueur 2&#10;Joueur 3&#10;..."
                       style="width: 100%; height: 200px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
             <div class="modal-buttons">
                 <button class="btn btn-danger" onclick="closeBulkModal()">Annuler</button>
