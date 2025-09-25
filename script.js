@@ -485,6 +485,8 @@ try {
             updatePlayersDisplay(dayNum);
             updateMatchesDisplay(dayNum);
             updateStats(dayNum);
+            //nouveau pour les pools
+            initializePoolsForDay(dayNum);
         });
     }
 
@@ -496,6 +498,12 @@ try {
         
         const dayData = championship.days[dayNumber];
         if (!dayData) return;
+
+        // NOUVEAU: Vérifier si le mode poules est activé
+        if (dayData.pools && dayData.pools.enabled) {
+        alert('⚠️ Mode Poules activé !\n\nUtilisez les boutons "Générer les Poules" dans la section bleue ci-dessus.');
+        return;
+        }
         
         let reportDetails = {
             totalNewMatches: 0,
@@ -3045,11 +3053,697 @@ window.exportGeneralRankingToHTML = exportGeneralRankingToHTML;
         } else {
             initializeDivisionsDisplay(1);
             updatePlayersDisplay(1);
+            initializePoolsForDay(1);
         }
         
         setupEventListeners();
         console.log("Initialisation terminée");
     });
+
+    // ======================================
+// SYSTÈME DE POULES OPTIONNEL - EXTENSION SÉCURISÉE
+// ======================================
+
+// Extension de la structure de données (non-breaking)
+function initializePoolSystem(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    
+    // Ajouter la structure poules si elle n'existe pas
+    if (!dayData.pools) {
+        dayData.pools = {
+            enabled: false,
+            divisions: {
+                1: { pools: [], matches: [] },
+                2: { pools: [], matches: [] },
+                3: { pools: [], matches: [] }
+            }
+        };
+    }
+    
+    // Garantir la compatibilité avec l'ancien système
+    if (!dayData.matches) {
+        dayData.matches = { 1: [], 2: [], 3: [] };
+    }
+}
+
+// ======================================
+// INTERFACE UTILISATEUR - ACTIVATION POULES
+// ======================================
+
+function addPoolToggleToInterface(dayNumber) {
+    const section = document.querySelector(`#day-${dayNumber} .section`);
+    if (!section) return;
+    
+    // Créer le toggle poules après le bouton génération matchs
+    const generateButton = section.querySelector('button[onclick*="generateMatchesForDay"]');
+    if (!generateButton) return;
+    
+    const poolToggleHTML = `
+        <div class="pool-toggle-section" id="pool-toggle-${dayNumber}" style="
+            background: linear-gradient(135deg, #e8f4fd, #b3d9ff);
+            border: 2px solid #3498db;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        ">
+            <h3 style="color: #2980b9; margin-bottom: 15px;">
+                🎯 Mode Poules de Qualification (Optionnel)
+            </h3>
+            <p style="color: #34495e; margin-bottom: 15px; font-size: 14px;">
+                Les poules permettent de faire jouer tous les joueurs puis organiser des phases finales
+            </p>
+            
+            <div class="toggle-container" style="margin-bottom: 15px;">
+                <label class="toggle-switch" style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="pool-enabled-${dayNumber}" onchange="togglePoolMode(${dayNumber})" style="
+                        width: 20px; height: 20px; cursor: pointer;
+                    ">
+                    <span style="font-weight: bold; color: #2c3e50;">Activer le mode Poules</span>
+                </label>
+            </div>
+            
+            <div id="pool-config-${dayNumber}" class="pool-config" style="display: none;">
+                <div style="display: flex; gap: 15px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: 600; color: #2c3e50;">Taille des poules:</span>
+                        <select id="pool-size-${dayNumber}" style="padding: 8px; border: 2px solid #3498db; border-radius: 6px;">
+                            <option value="4">4 joueurs par poule</option>
+                            <option value="5">5 joueurs par poule</option>
+                            <option value="6">6 joueurs par poule</option>
+                        </select>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: 600; color: #2c3e50;">Qualifiés par poule:</span>
+                        <select id="qualified-per-pool-${dayNumber}" style="padding: 8px; border: 2px solid #3498db; border-radius: 6px;">
+                            <option value="2">2 premiers</option>
+                            <option value="3">3 premiers</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <button class="btn" onclick="generatePools(${dayNumber})" style="
+                    background: linear-gradient(135deg, #27ae60, #2ecc71);
+                    color: white;
+                    padding: 12px 25px;
+                    margin-right: 10px;
+                ">
+                    🎯 Générer les Poules
+                </button>
+                
+                <button class="btn" onclick="generateFinalPhase(${dayNumber})" style="
+                    background: linear-gradient(135deg, #f39c12, #e67e22);
+                    color: white;
+                    padding: 12px 25px;
+                " disabled id="final-phase-btn-${dayNumber}">
+                    🏆 Générer Phase Finale
+                </button>
+            </div>
+            
+            <div class="pool-info" style="
+                background: rgba(255, 255, 255, 0.8);
+                padding: 15px;
+                border-radius: 8px;
+                margin-top: 15px;
+                font-size: 13px;
+                color: #2c3e50;
+                display: none;
+            " id="pool-info-${dayNumber}">
+                <strong>ℹ️ Comment ça marche :</strong><br>
+                1. Les joueurs sont répartis en poules équilibrées<br>
+                2. Chaque poule joue en round-robin<br>
+                3. Les meilleurs se qualifient pour les phases finales<br>
+                4. Tableaux à élimination directe pour désigner les champions
+            </div>
+        </div>
+    `;
+    
+    generateButton.insertAdjacentHTML('afterend', poolToggleHTML);
+}
+
+// ======================================
+// FONCTIONS DE GESTION DES POULES
+// ======================================
+
+function togglePoolMode(dayNumber) {
+    const checkbox = document.getElementById(`pool-enabled-${dayNumber}`);
+    const config = document.getElementById(`pool-config-${dayNumber}`);
+    const info = document.getElementById(`pool-info-${dayNumber}`);
+    const generateButton = document.querySelector(`#day-${dayNumber} button[onclick*="generateMatchesForDay"]`);
+    
+    initializePoolSystem(dayNumber);
+    
+    if (checkbox.checked) {
+        // Activer mode poules
+        championship.days[dayNumber].pools.enabled = true;
+        config.style.display = 'block';
+        info.style.display = 'block';
+        
+        // Désactiver l'ancien bouton
+        if (generateButton) {
+            generateButton.style.opacity = '0.5';
+            generateButton.style.pointerEvents = 'none';
+            generateButton.innerHTML = '⚠️ Mode Poules Activé - Utilisez les boutons ci-dessus';
+        }
+        
+        showNotification('Mode Poules activé ! Utilisez "Générer les Poules" ci-dessus', 'info');
+    } else {
+        // Désactiver mode poules - Revenir au mode classique
+        championship.days[dayNumber].pools.enabled = false;
+        config.style.display = 'none';
+        info.style.display = 'none';
+        
+        // Réactiver l'ancien bouton
+        if (generateButton) {
+            generateButton.style.opacity = '1';
+            generateButton.style.pointerEvents = 'auto';
+            generateButton.innerHTML = '🎯 Générer les Matchs (Round-Robin)';
+        }
+        
+        // Nettoyer les poules existantes mais préserver les matchs round-robin classiques
+        championship.days[dayNumber].pools.divisions = {
+            1: { pools: [], matches: [] },
+            2: { pools: [], matches: [] },
+            3: { pools: [], matches: [] }
+        };
+        
+        showNotification('Mode Poules désactivé - Retour au mode classique', 'warning');
+    }
+    
+    saveToLocalStorage();
+}
+
+function generatePools(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    if (!dayData.pools.enabled) return;
+    
+    const poolSize = parseInt(document.getElementById(`pool-size-${dayNumber}`).value);
+    let totalMatches = 0;
+    
+    for (let division = 1; division <= 3; division++) {
+        const players = [...dayData.players[division]];
+        if (players.length < 4) {
+            if (players.length > 0) {
+                alert(`Division ${division}: Il faut au moins 4 joueurs pour créer des poules (${players.length} actuellement)`);
+            }
+            continue;
+        }
+        
+        // Mélanger les joueurs pour équilibrer les poules
+        const shuffledPlayers = shuffleArray([...players]);
+        const pools = createBalancedPools(shuffledPlayers, poolSize);
+        
+        // Sauvegarder les poules
+        dayData.pools.divisions[division].pools = pools;
+        
+        // Générer les matchs de poules
+        const poolMatches = generatePoolMatches(pools, division, dayNumber);
+        dayData.pools.divisions[division].matches = poolMatches;
+        totalMatches += poolMatches.length;
+        
+        console.log(`Division ${division}: ${pools.length} poules créées avec ${poolMatches.length} matchs`);
+    }
+    
+    // Mettre à jour l'affichage
+    updatePoolsDisplay(dayNumber);
+    saveToLocalStorage();
+    
+    // Activer le bouton phase finale quand toutes les poules sont terminées
+    checkPoolsCompletion(dayNumber);
+    
+    alert(`Poules générées avec succès !\n${totalMatches} matchs de poules créés.\n\nTerminez les poules pour débloquer la phase finale.`);
+}
+
+function createBalancedPools(players, maxPoolSize) {
+    const numPools = Math.ceil(players.length / maxPoolSize);
+    const pools = Array.from({ length: numPools }, () => []);
+    
+    // Répartition équilibrée (serpent)
+    players.forEach((player, index) => {
+        const poolIndex = Math.floor(index / maxPoolSize);
+        if (poolIndex < numPools) {
+            pools[poolIndex].push(player);
+        } else {
+            // Si il reste des joueurs, les répartir dans les poules existantes
+            const targetPool = index % numPools;
+            pools[targetPool].push(player);
+        }
+    });
+    
+    // Filtrer les poules vides
+    return pools.filter(pool => pool.length > 0);
+}
+
+function generatePoolMatches(pools, division, dayNumber) {
+    const allMatches = [];
+    let matchId = 0;
+    
+    pools.forEach((pool, poolIndex) => {
+        for (let i = 0; i < pool.length; i++) {
+            for (let j = i + 1; j < pool.length; j++) {
+                allMatches.push({
+                    id: matchId++,
+                    player1: pool[i],
+                    player2: pool[j],
+                    poolIndex: poolIndex,
+                    poolName: `Poule ${String.fromCharCode(65 + poolIndex)}`, // A, B, C...
+                    division: division,
+                    dayNumber: dayNumber,
+                    sets: [
+                        { player1Score: '', player2Score: '' },
+                        { player1Score: '', player2Score: '' },
+                        { player1Score: '', player2Score: '' }
+                    ],
+                    completed: false,
+                    winner: null,
+                    isPoolMatch: true
+                });
+            }
+        }
+    });
+    
+    return allMatches;
+}
+
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+// ======================================
+// AFFICHAGE DES POULES
+// ======================================
+
+function updatePoolsDisplay(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    if (!dayData.pools.enabled) return;
+    
+    for (let division = 1; division <= 3; division++) {
+        const container = document.getElementById(`division${dayNumber}-${division}-matches`);
+        if (!container) continue;
+        
+        const pools = dayData.pools.divisions[division].pools;
+        const matches = dayData.pools.divisions[division].matches;
+        
+        if (pools.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucune poule générée</div>';
+            continue;
+        }
+        
+        let html = '<div class="pools-container">';
+        
+        pools.forEach((pool, poolIndex) => {
+            const poolName = `Poule ${String.fromCharCode(65 + poolIndex)}`;
+            const poolMatches = matches.filter(m => m.poolIndex === poolIndex);
+            const completedMatches = poolMatches.filter(m => m.completed).length;
+            
+            html += `
+                <div class="pool-section" style="
+                    background: white;
+                    border: 2px solid #3498db;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                ">
+                    <div class="pool-header" style="
+                        background: linear-gradient(135deg, #3498db, #2980b9);
+                        color: white;
+                        padding: 15px;
+                        border-radius: 8px;
+                        margin-bottom: 15px;
+                        text-align: center;
+                    ">
+                        <h4 style="margin: 0; font-size: 1.2rem;">${poolName}</h4>
+                        <div style="font-size: 14px; margin-top: 5px;">
+                            ${completedMatches}/${poolMatches.length} matchs terminés
+                        </div>
+                    </div>
+                    
+                    <div class="pool-players" style="
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                        justify-content: center;
+                        margin-bottom: 15px;
+                        padding: 15px;
+                        background: #f8f9fa;
+                        border-radius: 8px;
+                    ">
+                        ${pool.map(player => 
+                            `<span class="pool-player-tag" style="
+                                background: linear-gradient(135deg, #27ae60, #2ecc71);
+                                color: white;
+                                padding: 8px 15px;
+                                border-radius: 20px;
+                                font-weight: 500;
+                                font-size: 14px;
+                            ">${player}</span>`
+                        ).join('')}
+                    </div>
+                    
+                    <div class="pool-matches">
+                        ${poolMatches.map(match => generatePoolMatchHTML(match, dayNumber)).join('')}
+                    </div>
+                    
+                    ${completedMatches === poolMatches.length ? 
+                        `<div class="pool-ranking" style="margin-top: 15px;">
+                            ${generatePoolRankingHTML(pool, poolMatches, poolIndex)}
+                        </div>` : ''}
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+}
+
+function generatePoolMatchHTML(match, dayNumber) {
+    const matchStatus = match.completed ? 'completed' : 'pending';
+    const statusClass = match.completed ? 'status-completed' : 'status-pending';
+    const statusText = match.completed ? 'Terminé' : 'En cours';
+    
+    return `
+        <div class="pool-match ${matchStatus}" style="
+            background: ${match.completed ? '#d5f4e6' : '#fff'};
+            border: 2px solid ${match.completed ? '#27ae60' : '#ecf0f1'};
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        ">
+            <div class="match-header" style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            ">
+                <div class="player-names" style="font-weight: 600; color: #2c3e50;">
+                    ${match.player1} VS ${match.player2}
+                </div>
+                <div class="match-status ${statusClass}" style="
+                    font-size: 12px;
+                    padding: 4px 8px;
+                    border-radius: 12px;
+                    font-weight: bold;
+                    background: ${match.completed ? '#a8e6cf' : '#ffeaa7'};
+                    color: ${match.completed ? '#00b894' : '#d63031'};
+                ">${statusText}</div>
+            </div>
+            
+            <div class="sets-container" style="
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                margin-bottom: 10px;
+            ">
+                ${match.sets.map((set, setIndex) => `
+                    <div class="set" style="
+                        background: #f8f9fa;
+                        border: 1px solid #ddd;
+                        border-radius: 6px;
+                        padding: 10px;
+                        text-align: center;
+                    ">
+                        <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px; font-weight: bold;">
+                            Set ${setIndex + 1}
+                        </div>
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                            <input type="number" 
+                                   value="${set.player1Score || ''}" 
+                                   placeholder=""
+                                   onchange="updatePoolMatchScore(${dayNumber}, '${match.id}', ${setIndex}, 'player1Score', this.value)"
+                                   onkeydown="handlePoolMatchEnter(event, ${dayNumber}, '${match.id}')"
+                                   style="width: 50px; height: 40px; text-align: center; padding: 8px; font-weight: bold; font-size: 16px; border: 2px solid #ddd; border-radius: 6px;">
+                            <span style="font-weight: bold; color: #7f8c8d;">-</span>
+                            <input type="number" 
+                                   value="${set.player2Score || ''}" 
+                                   placeholder=""
+                                   onchange="updatePoolMatchScore(${dayNumber}, '${match.id}', ${setIndex}, 'player2Score', this.value)"
+                                   onkeydown="handlePoolMatchEnter(event, ${dayNumber}, '${match.id}')"
+                                   style="width: 50px; height: 40px; text-align: center; padding: 8px; font-weight: bold; font-size: 16px; border: 2px solid #ddd; border-radius: 6px;">
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div class="match-result" style="
+                text-align: center;
+                font-weight: bold;
+                padding: 8px;
+                border-radius: 6px;
+                background: ${match.completed ? '#a8e6cf' : '#ffeaa7'};
+                color: ${match.completed ? '#00b894' : '#d63031'};
+            ">
+                ${match.completed && match.winner ? 
+                    `🏆 ${match.winner} remporte le match` : 
+                    'En attente des résultats'}
+            </div>
+        </div>
+    `;
+}
+
+// ======================================
+// GESTION DES SCORES DE POULES
+// ======================================
+
+function updatePoolMatchScore(dayNumber, matchId, setIndex, scoreField, value) {
+    const dayData = championship.days[dayNumber];
+    
+    for (let division = 1; division <= 3; division++) {
+        const match = dayData.pools.divisions[division].matches.find(m => m.id == matchId);
+        if (match) {
+            match.sets[setIndex][scoreField] = value;
+            checkPoolMatchCompletion(dayNumber, matchId);
+            saveToLocalStorage();
+            break;
+        }
+    }
+}
+
+function handlePoolMatchEnter(event, dayNumber, matchId) {
+    if (event.key === 'Enter') {
+        checkPoolMatchCompletion(dayNumber, matchId);
+        updatePoolsDisplay(dayNumber);
+        checkPoolsCompletion(dayNumber);
+        saveToLocalStorage();
+    }
+}
+
+function checkPoolMatchCompletion(dayNumber, matchId) {
+    const dayData = championship.days[dayNumber];
+    
+    for (let division = 1; division <= 3; division++) {
+        const match = dayData.pools.divisions[division].matches.find(m => m.id == matchId);
+        if (match) {
+            let player1Sets = 0;
+            let player2Sets = 0;
+            
+            match.sets.forEach(set => {
+                if (set.player1Score !== '' && set.player2Score !== '') {
+                    const score1 = parseInt(set.player1Score);
+                    const score2 = parseInt(set.player2Score);
+                    if (score1 > score2) player1Sets++;
+                    else if (score2 > score1) player2Sets++;
+                }
+            });
+            
+            if (player1Sets >= 2) {
+                match.completed = true;
+                match.winner = match.player1;
+            } else if (player2Sets >= 2) {
+                match.completed = true;
+                match.winner = match.player2;
+            } else {
+                match.completed = false;
+                match.winner = null;
+            }
+            
+            break;
+        }
+    }
+}
+
+function checkPoolsCompletion(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    const finalButton = document.getElementById(`final-phase-btn-${dayNumber}`);
+    
+    let allPoolsCompleted = true;
+    
+    for (let division = 1; division <= 3; division++) {
+        const matches = dayData.pools.divisions[division].matches;
+        if (matches.length > 0 && !matches.every(match => match.completed)) {
+            allPoolsCompleted = false;
+            break;
+        }
+    }
+    
+    if (finalButton) {
+        finalButton.disabled = !allPoolsCompleted;
+        finalButton.style.opacity = allPoolsCompleted ? '1' : '0.5';
+    }
+    
+    return allPoolsCompleted;
+}
+
+// ======================================
+// CLASSEMENT DES POULES
+// ======================================
+
+function generatePoolRankingHTML(pool, poolMatches, poolIndex) {
+    const playerStats = pool.map(player => {
+        let wins = 0, losses = 0, setsWon = 0, setsLost = 0, pointsWon = 0, pointsLost = 0;
+        
+        poolMatches.forEach(match => {
+            if (!match.completed) return;
+            
+            const isPlayer1 = match.player1 === player;
+            const isPlayer2 = match.player2 === player;
+            
+            if (isPlayer1 || isPlayer2) {
+                if (match.winner === player) wins++;
+                else losses++;
+                
+                match.sets.forEach(set => {
+                    if (set.player1Score !== '' && set.player2Score !== '') {
+                        const score1 = parseInt(set.player1Score);
+                        const score2 = parseInt(set.player2Score);
+                        
+                        if (isPlayer1) {
+                            if (score1 > score2) setsWon++;
+                            else if (score2 > score1) setsLost++;
+                            pointsWon += score1;
+                            pointsLost += score2;
+                        } else {
+                            if (score2 > score1) setsWon++;
+                            else if (score1 > score2) setsLost++;
+                            pointsWon += score2;
+                            pointsLost += score1;
+                        }
+                    }
+                });
+            }
+        });
+        
+        return {
+            name: player,
+            wins,
+            losses,
+            setsWon,
+            setsLost,
+            pointsWon,
+            pointsLost,
+            points: wins * 3 + losses * 1
+        };
+    });
+    
+    // Trier par points puis par sets puis par points de jeu
+    playerStats.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+        return b.pointsWon - a.pointsWon;
+    });
+    
+    return `
+        <div style="
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 15px;
+        ">
+            <h5 style="text-align: center; color: #28a745; margin-bottom: 15px;">
+                📊 Classement ${String.fromCharCode(65 + poolIndex)}
+            </h5>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                    <tr style="background: #28a745; color: white;">
+                        <th style="padding: 8px; text-align: left;">Rang</th>
+                        <th style="padding: 8px; text-align: left;">Joueur</th>
+                        <th style="padding: 8px; text-align: center;">Pts</th>
+                        <th style="padding: 8px; text-align: center;">V/D</th>
+                        <th style="padding: 8px; text-align: center;">Sets</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${playerStats.map((player, index) => `
+                        <tr style="
+                            background: ${index < 2 ? '#d4edda' : 'white'};
+                            border-bottom: 1px solid #dee2e6;
+                        ">
+                            <td style="padding: 8px; font-weight: bold; color: ${index < 2 ? '#155724' : '#333'};">
+                                ${index + 1}${index < 2 ? ' 🎯' : ''}
+                            </td>
+                            <td style="padding: 8px; font-weight: 600;">${player.name}</td>
+                            <td style="padding: 8px; text-align: center; font-weight: bold;">${player.points}</td>
+                            <td style="padding: 8px; text-align: center;">${player.wins}/${player.losses}</td>
+                            <td style="padding: 8px; text-align: center;">${player.setsWon}/${player.setsLost}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// ======================================
+// INTÉGRATION AVEC LE SYSTÈME EXISTANT
+// ======================================
+
+// Modifier la fonction de génération des matchs pour détecter le mode poules
+function generateMatchesForDayWithPoolSupport(dayNumber) {
+    if (!dayNumber) dayNumber = championship.currentDay;
+    
+    const dayData = championship.days[dayNumber];
+    if (!dayData) return;
+    
+    // Vérifier si le mode poules est activé
+    if (dayData.pools && dayData.pools.enabled) {
+        alert('⚠️ Mode Poules activé !\n\nUtilisez les boutons "Générer les Poules" dans la section bleue ci-dessus.');
+        return;
+    }
+    
+    // Continuer avec la génération classique
+    generateMatchesForDay(dayNumber);
+}
+
+// Hook d'initialisation pour chaque journée
+function initializePoolsForDay(dayNumber) {
+    // Ajouter l'interface poules si elle n'existe pas
+    const existingToggle = document.getElementById(`pool-toggle-${dayNumber}`);
+    if (!existingToggle) {
+        addPoolToggleToInterface(dayNumber);
+    }
+    
+    // Initialiser la structure de données
+    initializePoolSystem(dayNumber);
+    
+    // Vérifier l'état du toggle si les poules sont activées
+    const dayData = championship.days[dayNumber];
+    if (dayData.pools && dayData.pools.enabled) {
+        const checkbox = document.getElementById(`pool-enabled-${dayNumber}`);
+        if (checkbox) {
+            checkbox.checked = true;
+            togglePoolMode(dayNumber); // Appliquer l'état
+            updatePoolsDisplay(dayNumber);
+        }
+    }
+}
+
+// Export des fonctions principales
+window.initializePoolsForDay = initializePoolsForDay;
+window.togglePoolMode = togglePoolMode;
+window.generatePools = generatePools;
+window.updatePoolMatchScore = updatePoolMatchScore;
+window.handlePoolMatchEnter = handlePoolMatchEnter;
+window.generateFinalPhase = function(dayNumber) {
+    alert('Phase finale en cours de développement...\nPour l\'instant, utilisez le classement des poules !');
+};
+
+console.log("✅ Système de poules optionnel chargé avec succès !");
 
     console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
     
