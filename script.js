@@ -5231,6 +5231,575 @@ function getQualifiedPlayersFromPools(pools, matches, qualifiedPerPool) {
     
     return allQualified;
 }
+
+// Fonction principale pour imprimer les feuilles de match
+function printMatchSheets(dayNumber) {
+    if (!dayNumber) dayNumber = championship.currentDay;
+    
+    console.log(`📋 Génération des feuilles de match pour la Journée ${dayNumber}`);
+    
+    const dayData = championship.days[dayNumber];
+    if (!dayData) {
+        alert('Aucune donnée trouvée pour cette journée !');
+        return;
+    }
+    
+    // Collecter tous les matchs de toutes les divisions
+    let allMatches = [];
+    let hasMatches = false;
+    
+    for (let division = 1; division <= 3; division++) {
+        const divisionMatches = getDivisionMatches(dayData, division, dayNumber);
+        if (divisionMatches.length > 0) {
+            allMatches.push(...divisionMatches);
+            hasMatches = true;
+        }
+    }
+    
+    if (!hasMatches) {
+        alert('⚠️ Aucun match généré pour cette journée !\n\nVeuillez d\'abord générer les matchs ou les poules.');
+        return;
+    }
+    
+    // Grouper les matchs par pages (5 matchs par page A4)
+    const matchPages = groupMatchesIntoPages(allMatches, 5);
+    
+    // Générer le HTML d'impression
+    const printHTML = generateMatchSheetHTML(dayNumber, matchPages);
+    
+    // Ouvrir dans une nouvelle fenêtre pour impression
+    openPrintWindow(printHTML, `Feuilles_de_match_J${dayNumber}`);
+    
+    showNotification(`📋 ${allMatches.length} feuilles de match générées !`, 'success');
+}
+
+// Récupérer les matchs d'une division (Round-Robin ou Poules)
+function getDivisionMatches(dayData, division, dayNumber) {
+    const matches = [];
+    
+    // Vérifier d'abord le mode poules
+    if (dayData.pools && dayData.pools.enabled && dayData.pools.divisions[division].matches.length > 0) {
+        // Mode poules
+        const poolMatches = dayData.pools.divisions[division].matches;
+        poolMatches.forEach((match, index) => {
+            matches.push({
+                matchId: `J${dayNumber}-D${division}-P${match.poolIndex + 1}-M${index + 1}`,
+                division: division,
+                player1: match.player1,
+                player2: match.player2,
+                type: 'Poule',
+                poolName: match.poolName || `Poule ${String.fromCharCode(65 + match.poolIndex)}`,
+                tour: null,
+                dayNumber: dayNumber
+            });
+        });
+    } else if (dayData.matches[division].length > 0) {
+        // Mode Round-Robin classique
+        const roundRobinMatches = dayData.matches[division];
+        roundRobinMatches.forEach((match, index) => {
+            matches.push({
+                matchId: `J${dayNumber}-D${division}-T${match.tour}-M${index + 1}`,
+                division: division,
+                player1: match.player1,
+                player2: match.player2,
+                type: 'Round-Robin',
+                tour: match.tour,
+                poolName: null,
+                dayNumber: dayNumber
+            });
+        });
+    }
+    
+    return matches;
+}
+
+// Grouper les matchs en pages
+function groupMatchesIntoPages(matches, matchesPerPage) {
+    const pages = [];
+    
+    for (let i = 0; i < matches.length; i += matchesPerPage) {
+        pages.push(matches.slice(i, i + matchesPerPage));
+    }
+    
+    return pages;
+}
+
+// Générer le HTML complet pour l'impression
+function generateMatchSheetHTML(dayNumber, matchPages) {
+    const currentDate = new Date().toLocaleDateString('fr-FR', {
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric'
+    });
+    
+    let htmlContent = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Feuilles de Match - Journée ${dayNumber}</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Arial', 'Helvetica', sans-serif;
+                    font-size: 11px;
+                    line-height: 1.4;
+                    color: #2c3e50;
+                    background: white;
+                    padding: 20px;
+                }
+                
+                .page {
+                    min-height: 100vh;
+                    padding: 0;
+                    margin: 0 auto;
+                    max-width: 210mm;
+                    page-break-after: always;
+                    background: white;
+                }
+                
+                .page:last-child {
+                    page-break-after: avoid;
+                }
+                
+                .page-header {
+                    text-align: center;
+                    margin-bottom: 25px;
+                    padding: 15px 0;
+                    border-bottom: 3px solid #2c3e50;
+                }
+                
+                .page-title {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin-bottom: 5px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+                
+                .page-subtitle {
+                    font-size: 13px;
+                    color: #7f8c8d;
+                    margin-bottom: 8px;
+                }
+                
+                .page-info {
+                    font-size: 11px;
+                    color: #95a5a6;
+                }
+                
+                .match-sheet {
+                    background: white;
+                    border: 2px solid #34495e;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 20px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    page-break-inside: avoid;
+                }
+                
+                .match-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #ecf0f1;
+                }
+                
+                .match-id {
+                    font-weight: bold;
+                    font-size: 13px;
+                    color: #2c3e50;
+                    background: #ecf0f1;
+                    padding: 5px 10px;
+                    border-radius: 15px;
+                }
+                
+                .match-type {
+                    font-size: 11px;
+                    color: #7f8c8d;
+                    font-style: italic;
+                }
+                
+                .players-section {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 6px;
+                }
+                
+                .player-name {
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    flex: 1;
+                    text-align: center;
+                    padding: 8px;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    margin: 0 5px;
+                }
+                
+                .vs-separator {
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #e74c3c;
+                    margin: 0 10px;
+                }
+                
+                .score-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 15px;
+                    border: 2px solid #34495e;
+                }
+                
+                .score-table th {
+                    background: #34495e;
+                    color: white;
+                    padding: 8px;
+                    text-align: center;
+                    font-weight: bold;
+                    font-size: 11px;
+                    border: 1px solid #2c3e50;
+                }
+                
+                .score-table td {
+                    padding: 12px;
+                    text-align: center;
+                    border: 1px solid #bdc3c7;
+                    background: white;
+                }
+                
+                .score-cell {
+                    width: 80px;
+                    height: 25px;
+                    border: 2px solid #3498db;
+                    background: #f8f9fa;
+                    margin: 0 auto;
+                    border-radius: 4px;
+                }
+                
+                .player-column {
+                    background: #ecf0f1 !important;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    width: 150px;
+                }
+                
+                .sets-won-cell {
+                    background: #d5f4e6 !important;
+                    border: 2px solid #27ae60 !important;
+                    font-weight: bold;
+                }
+                
+                .result-section {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-top: 15px;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 6px;
+                    border: 1px solid #ddd;
+                }
+                
+                .winner-box {
+                    flex: 1;
+                    margin-right: 15px;
+                }
+                
+                .signature-box {
+                    flex: 1;
+                }
+                
+                .label {
+                    font-size: 10px;
+                    color: #7f8c8d;
+                    margin-bottom: 5px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+                
+                .input-line {
+                    border-bottom: 2px solid #3498db;
+                    height: 25px;
+                    background: white;
+                    border-radius: 2px;
+                }
+                
+                .footer-info {
+                    text-align: center;
+                    margin-top: 15px;
+                    padding-top: 10px;
+                    border-top: 1px solid #ecf0f1;
+                    font-size: 9px;
+                    color: #95a5a6;
+                }
+                
+                .division-badge {
+                    display: inline-block;
+                    padding: 3px 8px;
+                    border-radius: 12px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    margin-left: 8px;
+                }
+                
+                .division-1 { background: #ffe6e6; color: #c0392b; }
+                .division-2 { background: #fff3cd; color: #856404; }
+                .division-3 { background: #d4edda; color: #155724; }
+                
+                @media print {
+                    body {
+                        padding: 0;
+                        background: white !important;
+                        -webkit-print-color-adjust: exact;
+                        color-adjust: exact;
+                    }
+                    
+                    .page {
+                        padding: 15mm;
+                        margin: 0;
+                        max-width: none;
+                        width: 100%;
+                        box-shadow: none;
+                    }
+                    
+                    .match-sheet {
+                        box-shadow: none;
+                        border: 2px solid #000 !important;
+                        margin-bottom: 15px;
+                    }
+                    
+                    .score-table th {
+                        background: #000 !important;
+                        color: white !important;
+                        -webkit-print-color-adjust: exact;
+                        color-adjust: exact;
+                    }
+                    
+                    .player-column {
+                        background: #f0f0f0 !important;
+                        -webkit-print-color-adjust: exact;
+                        color-adjust: exact;
+                    }
+                    
+                    .sets-won-cell {
+                        background: #e8f5e8 !important;
+                        -webkit-print-color-adjust: exact;
+                        color-adjust: exact;
+                    }
+                }
+                
+                @page {
+                    margin: 1cm;
+                    size: A4 portrait;
+                }
+            </style>
+        </head>
+        <body>
+    `;
+    
+    // Générer chaque page
+    matchPages.forEach((pageMatches, pageIndex) => {
+        htmlContent += `
+            <div class="page">
+                <div class="page-header">
+                    <div class="page-title">🏓 Feuilles de Match - Journée ${dayNumber}</div>
+                    <div class="page-subtitle">Championnat Tennis de Table - ${currentDate}</div>
+                    <div class="page-info">Page ${pageIndex + 1}/${matchPages.length} • ${pageMatches.length} matchs • Gestion Esenca Sport</div>
+                </div>
+        `;
+        
+        // Générer chaque match de la page
+        pageMatches.forEach(match => {
+            htmlContent += generateSingleMatchSheet(match);
+        });
+        
+        htmlContent += `</div>`;
+    });
+    
+    htmlContent += `
+        </body>
+        </html>
+    `;
+    
+    return htmlContent;
+}
+
+// Générer une feuille de match individuelle
+function generateSingleMatchSheet(match) {
+    const divisionClass = `division-${match.division}`;
+    const divisionName = match.division === 1 ? 'Division 1 🥇' : 
+                        match.division === 2 ? 'Division 2 🥈' : 
+                        'Division 3 🥉';
+    
+    const matchInfo = match.type === 'Poule' ? 
+        `${match.poolName}` : 
+        `Tour ${match.tour}`;
+    
+    return `
+        <div class="match-sheet">
+            <div class="match-header">
+                <div class="match-id">
+                    ${match.matchId}
+                    <span class="division-badge ${divisionClass}">${divisionName}</span>
+                </div>
+                <div class="match-type">${match.type} • ${matchInfo}</div>
+            </div>
+            
+            <div class="players-section">
+                <div class="player-name">${match.player1}</div>
+                <div class="vs-separator">VS</div>
+                <div class="player-name">${match.player2}</div>
+            </div>
+            
+            <table class="score-table">
+                <thead>
+                    <tr>
+                        <th>Joueur</th>
+                        <th>Set 1</th>
+                        <th>Set 2</th>
+                        <th>Set 3</th>
+                        <th>Sets gagnés</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="player-column">${match.player1}</td>
+                        <td><div class="score-cell"></div></td>
+                        <td><div class="score-cell"></div></td>
+                        <td><div class="score-cell"></div></td>
+                        <td class="sets-won-cell"><div class="score-cell"></div></td>
+                    </tr>
+                    <tr>
+                        <td class="player-column">${match.player2}</td>
+                        <td><div class="score-cell"></div></td>
+                        <td><div class="score-cell"></div></td>
+                        <td><div class="score-cell"></div></td>
+                        <td class="sets-won-cell"><div class="score-cell"></div></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="result-section">
+                <div class="winner-box">
+                    <div class="label">🏆 Vainqueur :</div>
+                    <div class="input-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div class="label">✍️ Signature arbitre :</div>
+                    <div class="input-line"></div>
+                </div>
+            </div>
+            
+            <div class="footer-info">
+                Match au meilleur des 3 sets • Premier à 11 points (écart de 2) • Retour à l'arbitrage après le match
+            </div>
+        </div>
+    `;
+}
+
+// Ouvrir la fenêtre d'impression
+function openPrintWindow(htmlContent, filename) {
+    const printWindow = window.open('', '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');
+    
+    if (!printWindow) {
+        alert('❌ Impossible d\'ouvrir la fenêtre d\'impression.\n\nVeuillez autoriser les pop-ups pour ce site.');
+        return;
+    }
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    // Attendre que le contenu soit chargé
+    setTimeout(() => {
+        printWindow.focus();
+        
+        const shouldPrint = printWindow.confirm(
+            '📋 Feuilles de match générées avec succès !\n\n' +
+            '🖨️ Voulez-vous ouvrir la boîte de dialogue d\'impression maintenant ?\n\n' +
+            '💡 Conseil : Utilisez le format A4 Portrait pour un résultat optimal.'
+        );
+        
+        if (shouldPrint) {
+            printWindow.print();
+        }
+    }, 1000);
+}
+
+// Fonction pour ajouter le bouton à l'interface
+function addPrintMatchesButton() {
+    // Trouver tous les .control-buttons dans chaque journée
+    const allControlButtons = document.querySelectorAll('.control-buttons');
+    
+    allControlButtons.forEach(controlButtonsContainer => {
+        // Vérifier si le bouton n'existe pas déjà
+        if (controlButtonsContainer.querySelector('.print-matches-btn')) {
+            return;
+        }
+        
+        // Trouver le dayNumber à partir du contexte
+        const dayContent = controlButtonsContainer.closest('.day-content');
+        if (!dayContent) return;
+        
+        const dayNumber = parseInt(dayContent.id.replace('day-', ''));
+        if (isNaN(dayNumber)) return;
+        
+        // Créer le bouton
+        const printButton = document.createElement('button');
+        printButton.className = 'btn print-matches-btn';
+        printButton.innerHTML = '📋 Imprimer Matchs';
+        printButton.style.background = 'linear-gradient(135deg, #8e44ad, #9b59b6)';
+        printButton.style.color = 'white';
+        printButton.onclick = () => printMatchSheets(dayNumber);
+        printButton.title = 'Imprimer les feuilles de match pour les arbitres';
+        
+        // Insérer après le bouton "Classements" s'il existe
+        const rankingsButton = controlButtonsContainer.querySelector('button[onclick*="updateRankings"]');
+        if (rankingsButton) {
+            rankingsButton.insertAdjacentElement('afterend', printButton);
+        } else {
+            // Sinon l'insérer au début
+            controlButtonsContainer.insertBefore(printButton, controlButtonsContainer.firstChild);
+        }
+    });
+}
+
+// Exporter les fonctions pour usage global
+window.printMatchSheets = printMatchSheets;
+window.addPrintMatchesButton = addPrintMatchesButton;
+
+// Ajouter automatiquement les boutons au chargement et lors de la création de nouvelles journées
+if (typeof window !== 'undefined') {
+    // Ajouter les boutons existants
+    setTimeout(addPrintMatchesButton, 500);
+    
+    // Hook pour les nouvelles journées
+    const originalCreateDayContent = window.createDayContent;
+    if (originalCreateDayContent) {
+        window.createDayContent = function(dayNumber) {
+            originalCreateDayContent(dayNumber);
+            setTimeout(addPrintMatchesButton, 100);
+        };
+    }
+    
+    console.log('✅ Système d\'impression des feuilles de match installé !');
+    console.log('📋 Fonction disponible : printMatchSheets(dayNumber)');
+}
     console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
     
 } catch (error) {
