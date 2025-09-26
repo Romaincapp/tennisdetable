@@ -5232,6 +5232,10 @@ function getQualifiedPlayersFromPools(pools, matches, qualifiedPerPool) {
     return allQualified;
 }
 
+// ======================================
+// SYSTÈME D'IMPRESSION DES FEUILLES DE MATCH
+// ======================================
+
 // Fonction principale pour imprimer les feuilles de match
 function printMatchSheets(dayNumber) {
     if (!dayNumber) dayNumber = championship.currentDay;
@@ -5779,26 +5783,48 @@ function addPrintMatchesButton() {
     });
 }
 
-// Exporter les fonctions pour usage global
+// ===============================================
+// EXPORT EXPLICITE VERS WINDOW - TRÈS IMPORTANT
+// ===============================================
 window.printMatchSheets = printMatchSheets;
 window.addPrintMatchesButton = addPrintMatchesButton;
+window.getDivisionMatches = getDivisionMatches;
+window.groupMatchesIntoPages = groupMatchesIntoPages;
+window.generateMatchSheetHTML = generateMatchSheetHTML;
+window.generateSingleMatchSheet = generateSingleMatchSheet;
+window.openPrintWindow = openPrintWindow;
+
+console.log('✅ Système d\'impression des feuilles de match installé !');
+console.log('📋 Fonctions exportées vers window:', Object.keys(window).filter(k => k.includes('print')));
 
 // Ajouter automatiquement les boutons au chargement et lors de la création de nouvelles journées
-if (typeof window !== 'undefined') {
-    // Ajouter les boutons existants
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔄 DOM chargé - Ajout des boutons d\'impression...');
+    setTimeout(addPrintMatchesButton, 1000);
+});
+
+// Hook pour les nouvelles journées
+const originalCreateDayContent = window.createDayContent;
+if (originalCreateDayContent) {
+    window.createDayContent = function(dayNumber) {
+        const result = originalCreateDayContent(dayNumber);
+        setTimeout(() => {
+            console.log(`🔄 Journée ${dayNumber} créée - Ajout bouton impression...`);
+            addPrintMatchesButton();
+        }, 200);
+        return result;
+    };
+    console.log('🎣 Hook createDayContent installé');
+}
+
+// Ajouter immédiatement si le DOM est déjà chargé
+if (document.readyState === 'loading') {
+    // DOM pas encore chargé
+    console.log('⏳ DOM en cours de chargement...');
+} else {
+    // DOM déjà chargé
+    console.log('✅ DOM déjà chargé - Ajout immédiat des boutons...');
     setTimeout(addPrintMatchesButton, 500);
-    
-    // Hook pour les nouvelles journées
-    const originalCreateDayContent = window.createDayContent;
-    if (originalCreateDayContent) {
-        window.createDayContent = function(dayNumber) {
-            originalCreateDayContent(dayNumber);
-            setTimeout(addPrintMatchesButton, 100);
-        };
-    }
-    
-    console.log('✅ Système d\'impression des feuilles de match installé !');
-    console.log('📋 Fonction disponible : printMatchSheets(dayNumber)');
 }
     console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
     
