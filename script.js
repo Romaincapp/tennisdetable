@@ -3745,9 +3745,1153 @@ window.generateFinalPhase = function(dayNumber) {
 
 console.log("✅ Système de poules optionnel chargé avec succès !");
 
+// ======================================
+// SYSTÈME DE PHASES FINALES MANUELLES - SYNTAXE CORRIGÉE
+// ======================================
+
+// Extension de la structure pour les phases finales manuelles
+function initializeManualFinalPhase(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    
+    if (dayData.pools && !dayData.pools.manualFinalPhase) {
+        dayData.pools.manualFinalPhase = {
+            enabled: false,
+            currentRound: null,
+            divisions: {
+                1: { 
+                    qualified: [],
+                    rounds: {},
+                    champion: null,
+                    runnerUp: null,
+                    third: null,
+                    fourth: null
+                },
+                2: { 
+                    qualified: [],
+                    rounds: {},
+                    champion: null,
+                    runnerUp: null,
+                    third: null,
+                    fourth: null
+                },
+                3: { 
+                    qualified: [],
+                    rounds: {},
+                    champion: null,
+                    runnerUp: null,
+                    third: null,
+                    fourth: null
+                }
+            }
+        };
+    }
+}
+
+// Fonction principale pour générer les phases finales manuelles
+function generateManualFinalPhase(dayNumber) {
+    console.log("🏆 Génération phase finale MANUELLE pour journée", dayNumber);
+    
+    const dayData = championship.days[dayNumber];
+    if (!dayData.pools || !dayData.pools.enabled) {
+        alert('Les phases finales ne sont disponibles qu\'en mode Poules !');
+        return;
+    }
+    
+    // Vérifier que toutes les poules sont terminées
+    if (!checkPoolsCompletion(dayNumber)) {
+        alert('⚠️ Terminez d\'abord toutes les poules avant de générer la phase finale !');
+        return;
+    }
+    
+    initializeManualFinalPhase(dayNumber);
+    
+    const qualifiedPerPool = parseInt(document.getElementById(`qualified-per-pool-${dayNumber}`).value);
+    let totalQualified = 0;
+    
+    // Qualifier les joueurs de chaque division
+    for (let division = 1; division <= 3; division++) {
+        const pools = dayData.pools.divisions[division].pools;
+        const matches = dayData.pools.divisions[division].matches;
+        
+        if (pools.length === 0) continue;
+        
+        const qualified = getQualifiedPlayersFromPools(pools, matches, qualifiedPerPool);
+        dayData.pools.manualFinalPhase.divisions[division].qualified = qualified;
+        totalQualified += qualified.length;
+        
+        // Déterminer le premier tour selon le nombre de qualifiés
+        const firstRoundName = determineFirstRound(qualified.length);
+        if (firstRoundName && qualified.length >= 4) {
+            generateFirstRound(dayNumber, division, qualified, firstRoundName);
+        }
+    }
+    
+    dayData.pools.manualFinalPhase.enabled = true;
+    
+    // Mettre à jour l'affichage
+    updateManualFinalPhaseDisplay(dayNumber);
+    saveToLocalStorage();
+    
+    alert(`🏆 Phase finale initialisée !\n\n${totalQualified} joueurs qualifiés au total.\n\nVous pouvez maintenant gérer les tours un par un !`);
+}
+
+function determineFirstRound(numPlayers) {
+    if (numPlayers >= 16) return "16èmes";
+    if (numPlayers >= 8) return "8èmes";
+    if (numPlayers >= 4) return "Quarts";
+    return null;
+}
+
+function generateFirstRound(dayNumber, division, qualified, roundName) {
+    const dayData = championship.days[dayNumber];
+    const rounds = dayData.pools.manualFinalPhase.divisions[division].rounds;
+    
+    console.log(`🎯 Génération ${roundName} pour Division ${division} avec ${qualified.length} joueurs`);
+    
+    // Créer le tableau équilibré
+    const seededPlayers = organizeSeeds(qualified);
+    const matches = [];
+    
+    for (let i = 0; i < seededPlayers.length; i += 2) {
+        const player1 = seededPlayers[i];
+        const player2 = seededPlayers[i + 1] || { name: 'BYE', isBye: true };
+        
+        const matchData = {
+            id: `${roundName}-${division}-${Math.floor(i/2) + 1}`,
+            player1: player1.name,
+            player2: player2.name,
+            player1Seed: player1.seed,
+            player2Seed: player2.seed || null,
+            sets: [
+                { player1Score: '', player2Score: '' },
+                { player1Score: '', player2Score: '' },
+                { player1Score: '', player2Score: '' }
+            ],
+            completed: player2.isBye || false,
+            winner: player2.isBye ? player1.name : null,
+            roundName: roundName,
+            position: Math.floor(i/2) + 1,
+            isBye: player2.isBye || false
+        };
+        
+        matches.push(matchData);
+    }
+    
+    rounds[roundName] = {
+        name: roundName,
+        matches: matches,
+        completed: false,
+        nextRound: getNextRoundName(roundName)
+    };
+    
+    // Marquer comme tour actuel
+    dayData.pools.manualFinalPhase.currentRound = roundName;
+    
+    console.log(`✅ ${roundName} créé avec ${matches.length} matchs`);
+}
+
+function getNextRoundName(currentRound) {
+    const sequence = ["16èmes", "8èmes", "Quarts", "Demi-finales", "Finale"];
+    const currentIndex = sequence.indexOf(currentRound);
+    return currentIndex >= 0 && currentIndex < sequence.length - 1 ? sequence[currentIndex + 1] : null;
+}
+
+function organizeSeeds(qualified) {
+    return qualified.sort((a, b) => a.seed - b.seed);
+}
+
+// ======================================
+// AFFICHAGE DES PHASES FINALES MANUELLES
+// ======================================
+
+function updateManualFinalPhaseDisplay(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    if (!dayData.pools || !dayData.pools.manualFinalPhase || !dayData.pools.manualFinalPhase.enabled) {
+        return;
+    }
+    
+    for (let division = 1; division <= 3; division++) {
+        const container = document.getElementById(`division${dayNumber}-${division}-matches`);
+        if (!container) continue;
+        
+        const finalPhase = dayData.pools.manualFinalPhase.divisions[division];
+        
+        if (finalPhase.qualified.length === 0) continue;
+        
+        let html = generateManualFinalPhaseHTML(dayNumber, division, finalPhase);
+        
+        // Ajouter après les poules
+        const poolsContainer = container.querySelector('.pools-container');
+        if (poolsContainer) {
+            // Supprimer ancien affichage phase finale
+            const existingFinal = container.querySelector('.manual-final-phase-container');
+            if (existingFinal) existingFinal.remove();
+            
+            poolsContainer.insertAdjacentHTML('afterend', html);
+        }
+    }
+}
+
+function generateManualFinalPhaseHTML(dayNumber, division, finalPhase) {
+    const currentRound = championship.days[dayNumber].pools.manualFinalPhase.currentRound;
+    const rounds = finalPhase.rounds;
+    
+    let html = `
+        <div class="manual-final-phase-container" style="margin-top: 30px;">
+            <div class="final-phase-header" style="
+                background: linear-gradient(135deg, #8e44ad, #9b59b6);
+                color: white;
+                padding: 25px;
+                border-radius: 15px;
+                text-align: center;
+                margin-bottom: 25px;
+                box-shadow: 0 5px 15px rgba(142, 68, 173, 0.3);
+            ">
+                <h3 style="margin: 0 0 10px 0; font-size: 1.5rem;">
+                    🏆 PHASE FINALE MANUELLE - Division ${division}
+                </h3>
+                <div style="font-size: 16px; opacity: 0.9;">
+                    ${finalPhase.qualified.length} joueurs qualifiés
+                </div>
+                ${currentRound ? `
+                    <div style="
+                        background: rgba(255,255,255,0.2);
+                        padding: 10px 20px;
+                        border-radius: 20px;
+                        margin-top: 15px;
+                        display: inline-block;
+                    ">
+                        <strong>🎯 Tour actuel : ${currentRound}</strong>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="qualified-players" style="
+                background: linear-gradient(135deg, #e8f5e8, #d4edda);
+                border: 2px solid #28a745;
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 25px;
+            ">
+                <h4 style="color: #155724; margin-bottom: 15px; text-align: center;">
+                    ✨ Joueurs Qualifiés des Poules
+                </h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    ${finalPhase.qualified.map(player => `
+                        <span style="
+                            background: linear-gradient(135deg, #28a745, #20c997);
+                            color: white;
+                            padding: 8px 15px;
+                            border-radius: 20px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            box-shadow: 0 3px 8px rgba(40, 167, 69, 0.3);
+                        ">
+                            #${player.seed} ${player.name} (${player.poolName})
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+    `;
+    
+    // Afficher les tours
+    if (Object.keys(rounds).length > 0) {
+        html += generateRoundsHTML(dayNumber, division, rounds, currentRound);
+    }
+    
+    // Afficher le podium si terminé
+    const champion = getChampionFromFinalPhase(finalPhase);
+    if (champion) {
+        html += generatePodiumHTML(finalPhase);
+    }
+    
+    html += '</div>';
+    
+    return html;
+}
+
+function generateRoundsHTML(dayNumber, division, rounds, currentRound) {
+    let html = '';
+    
+    const roundOrder = ["16èmes", "8èmes", "Quarts", "Demi-finales", "Petite finale", "Finale"];
+    
+    for (const roundName of roundOrder) {
+        if (!rounds[roundName]) continue;
+        
+        const round = rounds[roundName];
+        const isCurrentRound = roundName === currentRound;
+        const isCompleted = round.completed;
+        const completedMatches = round.matches.filter(m => m.completed).length;
+        const totalMatches = round.matches.length;
+        
+        html += `
+            <div class="manual-round" style="
+                background: ${isCurrentRound ? 'linear-gradient(135deg, #fff3cd, #ffeaa7)' : 'white'};
+                border: 3px solid ${isCurrentRound ? '#ffc107' : isCompleted ? '#28a745' : '#6c757d'};
+                border-radius: 15px;
+                padding: 25px;
+                margin-bottom: 25px;
+                ${isCurrentRound ? 'box-shadow: 0 5px 20px rgba(255, 193, 7, 0.3);' : ''}
+            ">
+                <div class="round-header" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                ">
+                    <h4 style="
+                        margin: 0;
+                        color: ${isCurrentRound ? '#856404' : isCompleted ? '#155724' : '#495057'};
+                        font-size: 1.3rem;
+                    ">
+                        ${getRoundIcon(roundName)} ${roundName}
+                    </h4>
+                    <div style="
+                        background: ${isCompleted ? '#d4edda' : isCurrentRound ? '#fff3cd' : '#f8f9fa'};
+                        color: ${isCompleted ? '#155724' : isCurrentRound ? '#856404' : '#6c757d'};
+                        padding: 8px 15px;
+                        border-radius: 20px;
+                        font-weight: bold;
+                        font-size: 14px;
+                    ">
+                        ${completedMatches}/${totalMatches} terminés
+                        ${isCompleted ? ' ✅' : isCurrentRound ? ' ⚡' : ' ⏳'}
+                    </div>
+                </div>
+                
+                <div class="round-matches" style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 15px;
+                    margin-bottom: 20px;
+                ">
+                    ${round.matches.map(match => generateManualMatchHTML(dayNumber, division, match, roundName)).join('')}
+                </div>
+                
+                ${generateRoundControlsHTML(dayNumber, division, round, roundName, completedMatches, totalMatches)}
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+function getRoundIcon(roundName) {
+    const icons = {
+        "16èmes": "🎯",
+        "8èmes": "🔥", 
+        "Quarts": "⚡",
+        "Demi-finales": "🚀",
+        "Petite finale": "🥉",
+        "Finale": "🏆"
+    };
+    return icons[roundName] || "🎲";
+}
+
+function generateManualMatchHTML(dayNumber, division, match, roundName) {
+    const isCompleted = match.completed;
+    const isActive = !match.isBye;
+    
+    return `
+        <div class="manual-match" style="
+            background: ${isCompleted ? '#d5f4e6' : isActive ? 'white' : '#f8f9fa'};
+            border: 2px solid ${isCompleted ? '#28a745' : isActive ? '#007bff' : '#6c757d'};
+            border-radius: 10px;
+            padding: 15px;
+            ${match.isBye ? 'opacity: 0.7;' : ''}
+        ">
+            <div class="match-header" style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+            ">
+                <div class="match-title" style="
+                    font-size: 13px;
+                    color: #6c757d;
+                    font-weight: bold;
+                ">
+                    Match ${match.position}
+                </div>
+                <div class="match-status" style="
+                    font-size: 12px;
+                    padding: 4px 10px;
+                    border-radius: 15px;
+                    font-weight: bold;
+                    background: ${isCompleted ? '#d4edda' : isActive ? '#cce5ff' : '#e2e3e5'};
+                    color: ${isCompleted ? '#155724' : isActive ? '#004085' : '#6c757d'};
+                ">
+                    ${isCompleted ? 'Terminé ✅' : match.isBye ? 'Qualifié ⚡' : 'En cours 🎯'}
+                </div>
+            </div>
+            
+            <div class="players" style="
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: ${match.isBye ? '0' : '15px'};
+                font-size: 15px;
+                text-align: center;
+            ">
+                ${match.player1Seed ? `#${match.player1Seed}` : ''} ${match.player1}
+                ${!match.isBye ? ` VS ${match.player2Seed ? `#${match.player2Seed}` : ''} ${match.player2}` : ''}
+            </div>
+            
+            ${match.isBye ? `
+                <div style="
+                    text-align: center;
+                    color: #28a745;
+                    font-style: italic;
+                    padding: 10px;
+                ">
+                    Qualifié automatiquement
+                </div>
+            ` : `
+                <div class="sets" style="
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 8px;
+                    margin-bottom: 12px;
+                ">
+                    ${match.sets.map((set, setIndex) => `
+                        <div style="
+                            background: #f8f9fa;
+                            border: 1px solid #dee2e6;
+                            border-radius: 6px;
+                            padding: 8px;
+                            text-align: center;
+                        ">
+                            <div style="font-size: 11px; color: #6c757d; margin-bottom: 3px;">Set ${setIndex + 1}</div>
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 3px;">
+                                <input type="number" 
+                                       value="${set.player1Score || ''}" 
+                                       onchange="updateManualMatchScore('${match.id}', ${setIndex}, 'player1Score', this.value, ${dayNumber})"
+                                       onkeydown="handleManualMatchEnter(event, '${match.id}', ${dayNumber})"
+                                       style="width: 35px; height: 30px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+                                <span style="color: #6c757d;">-</span>
+                                <input type="number" 
+                                       value="${set.player2Score || ''}" 
+                                       onchange="updateManualMatchScore('${match.id}', ${setIndex}, 'player2Score', this.value, ${dayNumber})"
+                                       onkeydown="handleManualMatchEnter(event, '${match.id}', ${dayNumber})"
+                                       style="width: 35px; height: 30px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="match-result" style="
+                    text-align: center;
+                    padding: 8px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    background: ${isCompleted ? '#d4edda' : '#fff3cd'};
+                    color: ${isCompleted ? '#155724' : '#856404'};
+                    font-size: 13px;
+                ">
+                    ${isCompleted && match.winner ? `🏆 ${match.winner} gagne` : 'En attente des scores'}
+                </div>
+            `}
+        </div>
+    `;
+}
+
+function generateRoundControlsHTML(dayNumber, division, round, roundName, completedMatches, totalMatches) {
+    const allCompleted = completedMatches === totalMatches && totalMatches > 0;
+    
+    if (!allCompleted && roundName !== "Finale" && roundName !== "Petite finale") {
+        return `
+            <div style="
+                text-align: center;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                color: #6c757d;
+                font-style: italic;
+            ">
+                Terminez tous les matchs pour passer au tour suivant
+            </div>
+        `;
+    }
+    
+    if (allCompleted && (roundName === "Finale" || roundName === "Petite finale")) {
+        return `
+            <div style="
+                text-align: center;
+                padding: 20px;
+                background: linear-gradient(135deg, #28a745, #20c997);
+                color: white;
+                border-radius: 10px;
+                font-weight: bold;
+            ">
+                🎉 ${roundName} terminée ! Consultez le podium ci-dessous.
+            </div>
+        `;
+    }
+    
+    // Cas spécial pour les demi-finales
+    if (allCompleted && roundName === "Demi-finales") {
+        return `
+            <div style="
+                text-align: center;
+                padding: 20px;
+                background: linear-gradient(135deg, #ffc107, #ffca2c);
+                border-radius: 10px;
+            ">
+                <div style="color: #856404; font-weight: bold; margin-bottom: 15px; font-size: 16px;">
+                    ✅ Demi-finales terminées !
+                </div>
+                <div style="display: flex; gap: 15px; justify-content: center; margin-top: 15px;">
+                    <button class="btn" onclick="generatePetiteFinale(${dayNumber}, ${division})" 
+                            style="
+                        background: linear-gradient(135deg, #fd7e14, #e55a00);
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        cursor: pointer;
+                    ">
+                        🥉 Petite Finale
+                    </button>
+                    <button class="btn" onclick="generateFinale(${dayNumber}, ${division})" 
+                            style="
+                        background: linear-gradient(135deg, #dc3545, #c82333);
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        cursor: pointer;
+                    ">
+                        🏆 Grande Finale
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Pour les autres tours terminés
+    if (allCompleted) {
+        const nextRound = round.nextRound;
+        if (nextRound) {
+            return `
+                <div style="
+                    text-align: center;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #ffc107, #ffca2c);
+                    border-radius: 10px;
+                ">
+                    <div style="color: #856404; font-weight: bold; margin-bottom: 15px; font-size: 16px;">
+                        ✅ Tous les matchs sont terminés !
+                    </div>
+                    <div style="margin-bottom: 15px; color: #6c5f00;">
+                        Qualifiés : ${getQualifiedFromRound(round).join(', ')}
+                    </div>
+                    <button class="btn" onclick="generateNextManualRound(${dayNumber}, ${division}, '${roundName}')" 
+                            style="
+                        background: linear-gradient(135deg, #28a745, #20c997);
+                        color: white;
+                        border: none;
+                        padding: 12px 25px;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3);
+                    ">
+                        🚀 Passer aux ${nextRound}
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    return '';
+}
+
+function getQualifiedFromRound(round) {
+    return round.matches.filter(m => m.completed && m.winner).map(m => m.winner);
+}
+
+// ======================================
+// FONCTIONS DE GESTION DES MATCHS
+// ======================================
+
+function updateManualMatchScore(matchId, setIndex, scoreField, value, dayNumber) {
+    console.log(`📝 Score manuel: ${matchId} - Set ${setIndex} - ${scoreField} = ${value}`);
+    
+    const dayData = championship.days[dayNumber];
+    let matchFound = false;
+    
+    // Chercher dans toutes les divisions et tous les tours
+    for (let division = 1; division <= 3; division++) {
+        const rounds = dayData.pools.manualFinalPhase.divisions[division].rounds;
+        
+        for (const roundName in rounds) {
+            const round = rounds[roundName];
+            const match = round.matches.find(m => m.id === matchId);
+            
+            if (match && !match.isBye) {
+                match.sets[setIndex][scoreField] = value;
+                checkManualMatchCompletion(match);
+                matchFound = true;
+                
+                // Vérifier si le tour est terminé
+                checkRoundCompletion(dayNumber, division, roundName);
+                
+                saveToLocalStorage();
+                break;
+            }
+        }
+        if (matchFound) break;
+    }
+    
+    if (!matchFound) {
+        console.error(`❌ Match ${matchId} non trouvé`);
+    }
+}
+
+function handleManualMatchEnter(event, matchId, dayNumber) {
+    if (event.key === 'Enter') {
+        console.log(`⌨️ Enter sur match ${matchId}`);
+        updateManualFinalPhaseDisplay(dayNumber);
+    }
+}
+
+function checkManualMatchCompletion(match) {
+    if (match.isBye) return;
+    
+    let player1Sets = 0;
+    let player2Sets = 0;
+    
+    match.sets.forEach(set => {
+        if (set.player1Score !== '' && set.player2Score !== '' && 
+            !isNaN(set.player1Score) && !isNaN(set.player2Score)) {
+            
+            const score1 = parseInt(set.player1Score);
+            const score2 = parseInt(set.player2Score);
+            
+            if (score1 > score2) player1Sets++;
+            else if (score2 > score1) player2Sets++;
+        }
+    });
+    
+    const wasCompleted = match.completed;
+    
+    if (player1Sets >= 2) {
+        match.completed = true;
+        match.winner = match.player1;
+    } else if (player2Sets >= 2) {
+        match.completed = true;
+        match.winner = match.player2;
+    } else {
+        match.completed = false;
+        match.winner = null;
+    }
+    
+    if (!wasCompleted && match.completed) {
+        console.log(`🏆 Match ${match.id} terminé: ${match.winner} gagne`);
+        showNotification(`🏆 ${match.winner} remporte le match !`, 'success');
+    }
+}
+
+function checkRoundCompletion(dayNumber, division, roundName) {
+    const round = championship.days[dayNumber].pools.manualFinalPhase.divisions[division].rounds[roundName];
+    if (!round) return;
+    
+    const completedMatches = round.matches.filter(m => m.completed).length;
+    const totalMatches = round.matches.length;
+    
+    const wasCompleted = round.completed;
+    round.completed = (completedMatches === totalMatches && totalMatches > 0);
+    
+    if (!wasCompleted && round.completed) {
+        console.log(`✅ ${roundName} terminé en Division ${division}`);
+        showNotification(`✅ ${roundName} terminé ! Vous pouvez passer au tour suivant.`, 'info');
+        
+        // Mettre à jour l'affichage
+        setTimeout(() => {
+            updateManualFinalPhaseDisplay(dayNumber);
+        }, 500);
+    }
+}
+
+// ======================================
+// GÉNÉRATION DES TOURS SUIVANTS
+// ======================================
+
+function generateNextManualRound(dayNumber, division, currentRoundName) {
+    console.log(`🚀 Génération tour suivant après ${currentRoundName}`);
+    
+    const dayData = championship.days[dayNumber];
+    const currentRound = dayData.pools.manualFinalPhase.divisions[division].rounds[currentRoundName];
+    
+    if (!currentRound.completed) {
+        alert('⚠️ Terminez d\'abord tous les matchs du tour actuel !');
+        return;
+    }
+    
+    const nextRoundName = currentRound.nextRound;
+    if (!nextRoundName) {
+        console.log('Pas de tour suivant défini');
+        return;
+    }
+    
+    // Récupérer les gagnants
+    const winners = currentRound.matches
+        .filter(match => match.completed && match.winner)
+        .map(match => ({
+            name: match.winner,
+            seed: match.winner === match.player1 ? match.player1Seed : match.player2Seed
+        }));
+    
+    if (winners.length < 2) {
+        alert('❌ Pas assez de gagnants pour créer le tour suivant !');
+        return;
+    }
+    
+    // Créer le tour suivant
+    createManualRound(dayNumber, division, nextRoundName, winners);
+    
+    // Mettre à jour le tour actuel
+    dayData.pools.manualFinalPhase.currentRound = nextRoundName;
+    
+    updateManualFinalPhaseDisplay(dayNumber);
+    saveToLocalStorage();
+    
+    showNotification(`🎯 ${nextRoundName} générés ! ${winners.length} joueurs qualifiés.`, 'success');
+}
+
+function createManualRound(dayNumber, division, roundName, players) {
+    const dayData = championship.days[dayNumber];
+    const rounds = dayData.pools.manualFinalPhase.divisions[division].rounds;
+    
+    const matches = [];
+    
+    for (let i = 0; i < players.length; i += 2) {
+        const player1 = players[i];
+        const player2 = players[i + 1];
+        
+        if (player1 && player2) {
+            const matchData = {
+                id: `${roundName}-${division}-${Math.floor(i/2) + 1}`,
+                player1: player1.name,
+                player2: player2.name,
+                player1Seed: player1.seed,
+                player2Seed: player2.seed,
+                sets: [
+                    { player1Score: '', player2Score: '' },
+                    { player1Score: '', player2Score: '' },
+                    { player1Score: '', player2Score: '' }
+                ],
+                completed: false,
+                winner: null,
+                roundName: roundName,
+                position: Math.floor(i/2) + 1,
+                isBye: false
+            };
+            
+            matches.push(matchData);
+        }
+    }
+    
+    rounds[roundName] = {
+        name: roundName,
+        matches: matches,
+        completed: false,
+        nextRound: getNextRoundName(roundName)
+    };
+    
+    console.log(`✅ ${roundName} créé avec ${matches.length} matchs`);
+}
+
+// ======================================
+// GESTION FINALE ET PETITE FINALE
+// ======================================
+
+function generateFinale(dayNumber, division) {
+    console.log(`🏆 Génération de la GRANDE FINALE - Division ${division}`);
+    
+    const dayData = championship.days[dayNumber];
+    const demiFinales = dayData.pools.manualFinalPhase.divisions[division].rounds["Demi-finales"];
+    
+    if (!demiFinales || !demiFinales.completed) {
+        alert('⚠️ Les demi-finales doivent être terminées !');
+        return;
+    }
+    
+    // Récupérer les gagnants des demi-finales
+    const finalistes = demiFinales.matches
+        .filter(match => match.completed && match.winner)
+        .map(match => ({
+            name: match.winner,
+            seed: match.winner === match.player1 ? match.player1Seed : match.player2Seed
+        }));
+    
+    if (finalistes.length !== 2) {
+        alert(`❌ Il faut exactement 2 finalistes ! (${finalistes.length} trouvés)`);
+        return;
+    }
+    
+    createManualRound(dayNumber, division, "Finale", finalistes);
+    
+    // Marquer la finale comme tour actuel
+    dayData.pools.manualFinalPhase.currentRound = "Finale";
+    
+    updateManualFinalPhaseDisplay(dayNumber);
+    saveToLocalStorage();
+    
+    showNotification(`🏆 GRANDE FINALE créée ! ${finalistes[0].name} vs ${finalistes[1].name}`, 'success');
+}
+
+function generatePetiteFinale(dayNumber, division) {
+    console.log(`🥉 Génération de la PETITE FINALE - Division ${division}`);
+    
+    const dayData = championship.days[dayNumber];
+    const demiFinales = dayData.pools.manualFinalPhase.divisions[division].rounds["Demi-finales"];
+    
+    if (!demiFinales || !demiFinales.completed) {
+        alert('⚠️ Les demi-finales doivent être terminées !');
+        return;
+    }
+    
+    // Récupérer les perdants des demi-finales
+    const perdants = demiFinales.matches
+        .filter(match => match.completed && match.winner)
+        .map(match => ({
+            name: match.winner === match.player1 ? match.player2 : match.player1,
+            seed: match.winner === match.player1 ? match.player2Seed : match.player1Seed
+        }));
+    
+    if (perdants.length !== 2) {
+        alert(`❌ Il faut exactement 2 perdants de demi-finale ! (${perdants.length} trouvés)`);
+        return;
+    }
+    
+    createManualRound(dayNumber, division, "Petite finale", perdants);
+    
+    updateManualFinalPhaseDisplay(dayNumber);
+    saveToLocalStorage();
+    
+    showNotification(`🥉 PETITE FINALE créée ! ${perdants[0].name} vs ${perdants[1].name}`, 'info');
+}
+
+// ======================================
+// PODIUM ET CLASSEMENT FINAL
+// ======================================
+
+function generatePodiumHTML(finalPhase) {
+    const finale = finalPhase.rounds["Finale"];
+    const petiteFinale = finalPhase.rounds["Petite finale"];
+    
+    if (!finale || !finale.completed) {
+        return '';
+    }
+    
+    const finaleMatch = finale.matches[0];
+    if (!finaleMatch || !finaleMatch.completed) {
+        return '';
+    }
+    
+    const champion = finaleMatch.winner;
+    const finaliste = finaleMatch.winner === finaleMatch.player1 ? finaleMatch.player2 : finaleMatch.player1;
+    
+    let troisieme = null;
+    let quatrieme = null;
+    
+    if (petiteFinale && petiteFinale.completed && petiteFinale.matches[0] && petiteFinale.matches[0].completed) {
+        const petiteFinaleMatch = petiteFinale.matches[0];
+        troisieme = petiteFinaleMatch.winner;
+        quatrieme = petiteFinaleMatch.winner === petiteFinaleMatch.player1 ? 
+            petiteFinaleMatch.player2 : petiteFinaleMatch.player1;
+    }
+    
+    return `
+        <div class="podium-container" style="
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            border: 3px solid #f39c12;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(243, 156, 18, 0.3);
+        ">
+            <h3 style="
+                color: #b8860b;
+                margin: 0 0 25px 0;
+                font-size: 1.8rem;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            ">
+                🏆 PODIUM FINAL
+            </h3>
+            
+            <div class="podium" style="
+                display: flex;
+                justify-content: center;
+                align-items: end;
+                gap: 20px;
+                margin: 25px 0;
+            ">
+                ${troisieme ? `
+                    <div class="podium-place" style="
+                        background: linear-gradient(135deg, #cd7f32, #b8722c);
+                        color: white;
+                        padding: 20px 15px;
+                        border-radius: 15px;
+                        min-width: 120px;
+                        height: 100px;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        box-shadow: 0 5px 15px rgba(205, 127, 50, 0.4);
+                    ">
+                        <div style="font-size: 2rem; margin-bottom: 5px;">🥉</div>
+                        <div style="font-weight: bold; font-size: 16px;">${troisieme}</div>
+                        <div style="font-size: 12px; opacity: 0.9;">3ème place</div>
+                    </div>
+                ` : ''}
+                
+                <div class="podium-place" style="
+                    background: linear-gradient(135deg, #ffd700, #ffed4e);
+                    color: #b8860b;
+                    padding: 25px 20px;
+                    border-radius: 15px;
+                    min-width: 140px;
+                    height: 140px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
+                    transform: scale(1.1);
+                ">
+                    <div style="font-size: 3rem; margin-bottom: 8px;">🏆</div>
+                    <div style="font-weight: bold; font-size: 18px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
+                        ${champion}
+                    </div>
+                    <div style="font-size: 14px; font-weight: bold;">CHAMPION</div>
+                </div>
+                
+                <div class="podium-place" style="
+                    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+                    color: white;
+                    padding: 20px 15px;
+                    border-radius: 15px;
+                    min-width: 120px;
+                    height: 120px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    box-shadow: 0 5px 15px rgba(192, 192, 192, 0.4);
+                ">
+                    <div style="font-size: 2.5rem; margin-bottom: 5px;">🥈</div>
+                    <div style="font-weight: bold; font-size: 16px;">${finaliste}</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Finaliste</div>
+                </div>
+            </div>
+            
+            ${quatrieme ? `
+                <div style="
+                    background: rgba(255, 255, 255, 0.8);
+                    padding: 10px 20px;
+                    border-radius: 10px;
+                    margin-top: 15px;
+                    color: #6c757d;
+                ">
+                    <strong>4ème place :</strong> ${quatrieme}
+                </div>
+            ` : ''}
+            
+            <div style="
+                margin-top: 20px;
+                font-size: 14px;
+                color: #856404;
+                font-style: italic;
+            ">
+                🎉 Félicitations à tous les participants ! 🎉
+            </div>
+        </div>
+    `;
+}
+
+// ======================================
+// FONCTIONS D'EXPORT ET UTILITAIRES
+// ======================================
+
+function exportManualFinalResults(dayNumber) {
+    const dayData = championship.days[dayNumber];
+    if (!dayData.pools || !dayData.pools.manualFinalPhase || !dayData.pools.manualFinalPhase.enabled) {
+        alert('Aucune phase finale manuelle à exporter !');
+        return;
+    }
+    
+    const exportData = {
+        version: "2.0",
+        exportDate: new Date().toISOString(),
+        exportType: "manual_final_phase_results",
+        dayNumber: dayNumber,
+        results: {}
+    };
+    
+    for (let division = 1; division <= 3; division++) {
+        const finalPhase = dayData.pools.manualFinalPhase.divisions[division];
+        
+        if (Object.keys(finalPhase.rounds).length > 0) {
+            exportData.results[division] = {
+                qualified: finalPhase.qualified,
+                rounds: finalPhase.rounds,
+                champion: getChampionFromFinalPhase(finalPhase),
+                podium: getPodiumFromFinalPhase(finalPhase)
+            };
+        }
+    }
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `resultats_phase_finale_manuelle_J${dayNumber}_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`Résultats phase finale manuelle J${dayNumber} exportés !`, 'success');
+}
+
+function getChampionFromFinalPhase(finalPhase) {
+    const finale = finalPhase.rounds["Finale"];
+    if (finale && finale.completed && finale.matches[0] && finale.matches[0].completed) {
+        return finale.matches[0].winner;
+    }
+    return null;
+}
+
+function getPodiumFromFinalPhase(finalPhase) {
+    const finale = finalPhase.rounds["Finale"];
+    const petiteFinale = finalPhase.rounds["Petite finale"];
+    
+    if (!finale || !finale.completed || !finale.matches[0] || !finale.matches[0].completed) {
+        return null;
+    }
+    
+    const finaleMatch = finale.matches[0];
+    const podium = {
+        champion: finaleMatch.winner,
+        finaliste: finaleMatch.winner === finaleMatch.player1 ? finaleMatch.player2 : finaleMatch.player1,
+        troisieme: null,
+        quatrieme: null
+    };
+    
+    if (petiteFinale && petiteFinale.completed && petiteFinale.matches[0] && petiteFinale.matches[0].completed) {
+        const petiteFinaleMatch = petiteFinale.matches[0];
+        podium.troisieme = petiteFinaleMatch.winner;
+        podium.quatrieme = petiteFinaleMatch.winner === petiteFinaleMatch.player1 ? 
+            petiteFinaleMatch.player2 : petiteFinaleMatch.player1;
+    }
+    
+    return podium;
+}
+
+function resetManualFinalPhase(dayNumber) {
+    if (!confirm('⚠️ Supprimer toute la phase finale manuelle ?\n\nCela supprimera tous les matchs et résultats, mais conservera les poules.')) {
+        return;
+    }
+    
+    const dayData = championship.days[dayNumber];
+    if (dayData.pools && dayData.pools.manualFinalPhase) {
+        dayData.pools.manualFinalPhase.enabled = false;
+        dayData.pools.manualFinalPhase.currentRound = null;
+        
+        for (let division = 1; division <= 3; division++) {
+            dayData.pools.manualFinalPhase.divisions[division] = {
+                qualified: [],
+                rounds: {},
+                champion: null,
+                runnerUp: null,
+                third: null,
+                fourth: null
+            };
+        }
+    }
+    
+    // Supprimer l'affichage
+    for (let division = 1; division <= 3; division++) {
+        const container = document.getElementById(`division${dayNumber}-${division}-matches`);
+        if (container) {
+            const finalPhaseContainer = container.querySelector('.manual-final-phase-container');
+            if (finalPhaseContainer) {
+                finalPhaseContainer.remove();
+            }
+        }
+    }
+    
+    saveToLocalStorage();
+    showNotification('Phase finale manuelle réinitialisée', 'warning');
+}
+
+// ======================================
+// INTÉGRATION AVEC LE SYSTÈME EXISTANT
+// ======================================
+
+// Remplacer la fonction generateFinalPhase existante
+window.generateFinalPhase = generateManualFinalPhase;
+window.updateManualMatchScore = updateManualMatchScore;
+window.handleManualMatchEnter = handleManualMatchEnter;
+window.generateNextManualRound = generateNextManualRound;
+window.generateFinale = generateFinale;
+window.generatePetiteFinale = generatePetiteFinale;
+window.exportManualFinalResults = exportManualFinalResults;
+window.resetManualFinalPhase = resetManualFinalPhase;
+
+// Améliorer le bouton phase finale
+const originalCheckPoolsCompletion = window.checkPoolsCompletion;
+if (originalCheckPoolsCompletion) {
+    window.checkPoolsCompletion = function(dayNumber) {
+        const result = originalCheckPoolsCompletion(dayNumber);
+        
+        const finalButton = document.getElementById(`final-phase-btn-${dayNumber}`);
+        if (finalButton && result) {
+            const dayData = championship.days[dayNumber];
+            if (dayData.pools && dayData.pools.manualFinalPhase && dayData.pools.manualFinalPhase.enabled) {
+                finalButton.innerHTML = '🔄 Gérer Phase Finale';
+                finalButton.style.background = 'linear-gradient(135deg, #8e44ad, #9b59b6)';
+                finalButton.onclick = () => updateManualFinalPhaseDisplay(dayNumber);
+            } else {
+                finalButton.innerHTML = '🏆 Phase Finale Manuelle';
+                finalButton.style.background = 'linear-gradient(135deg, #f39c12, #e67e22)';
+            }
+        }
+        
+        return result;
+    };
+}
+
+// Hook pour l'initialisation
+const originalInitializePoolsForDay = window.initializePoolsForDay;
+if (originalInitializePoolsForDay) {
+    window.initializePoolsForDay = function(dayNumber) {
+        originalInitializePoolsForDay(dayNumber);
+        
+        // Initialiser les phases finales manuelles si elles existent
+        const dayData = championship.days[dayNumber];
+        if (dayData.pools && dayData.pools.manualFinalPhase && dayData.pools.manualFinalPhase.enabled) {
+            initializeManualFinalPhase(dayNumber);
+            updateManualFinalPhaseDisplay(dayNumber);
+        }
+    };
+}
+
+console.log("✅ Système de phases finales MANUELLES chargé avec succès !");
+console.log("🎮 Fonctions disponibles :");
+console.log("  - generateFinalPhase() : Initialiser les phases finales");
+console.log("  - exportManualFinalResults() : Exporter les résultats"); 
+console.log("  - resetManualFinalPhase() : Réinitialiser");
+console.log("🏆 Contrôle total : Vous décidez quand passer au tour suivant !");
+
+
     console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
     
 } catch (error) {
+
     console.error("❌ ERREUR DANS LE SCRIPT:", error);
     console.error("Stack trace:", error.stack);
 }
