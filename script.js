@@ -3787,6 +3787,76 @@ function initializeManualFinalPhase(dayNumber) {
     }
 }
 
+// ======================================
+// FONCTION MANQUANTE - getQualifiedPlayersFromPools
+// ======================================
+
+function getQualifiedPlayersFromPools(pools, matches, qualifiedPerPool) {
+    const allQualified = [];
+    
+    pools.forEach((pool, poolIndex) => {
+        // Calculer le classement de cette poule
+        const playerStats = pool.map(player => {
+            let wins = 0, losses = 0, setsWon = 0, setsLost = 0, pointsWon = 0, pointsLost = 0;
+            
+            const poolMatches = matches.filter(m => m.poolIndex === poolIndex && m.completed);
+            
+            poolMatches.forEach(match => {
+                const isPlayer1 = match.player1 === player;
+                const isPlayer2 = match.player2 === player;
+                
+                if (isPlayer1 || isPlayer2) {
+                    if (match.winner === player) wins++;
+                    else losses++;
+                    
+                    match.sets.forEach(set => {
+                        if (set.player1Score !== '' && set.player2Score !== '') {
+                            const score1 = parseInt(set.player1Score);
+                            const score2 = parseInt(set.player2Score);
+                            
+                            if (isPlayer1) {
+                                if (score1 > score2) setsWon++;
+                                else if (score2 > score1) setsLost++;
+                                pointsWon += score1;
+                                pointsLost += score2;
+                            } else {
+                                if (score2 > score1) setsWon++;
+                                else if (score1 > score2) setsLost++;
+                                pointsWon += score2;
+                                pointsLost += score1;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            return {
+                name: player,
+                wins, losses, setsWon, setsLost, pointsWon, pointsLost,
+                points: wins * 3 + losses * 1,
+                poolIndex: poolIndex,
+                poolName: String.fromCharCode(65 + poolIndex)
+            };
+        });
+        
+        // Trier et prendre les N premiers
+        playerStats.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+            return b.pointsWon - a.pointsWon;
+        });
+        
+        const qualified = playerStats.slice(0, qualifiedPerPool);
+        qualified.forEach(player => {
+            player.seed = allQualified.length + 1; // Seed global
+        });
+        
+        allQualified.push(...qualified);
+    });
+    
+    return allQualified;
+}
+
 // Fonction principale pour générer les phases finales manuelles
 function generateManualFinalPhase(dayNumber) {
     console.log("🏆 Génération phase finale MANUELLE pour journée", dayNumber);
