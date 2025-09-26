@@ -5328,7 +5328,9 @@ function groupMatchesIntoPages(matches, matchesPerPage) {
     return pages;
 }
 
-// Générer le HTML complet pour l'impression
+// Remplacez seulement cette fonction dans votre code existant :
+
+// Générer le HTML complet pour l'impression - VERSION COMPACTE
 function generateMatchSheetHTML(dayNumber, matchPages) {
     const currentDate = new Date().toLocaleDateString('fr-FR', {
         year: 'numeric', 
@@ -5351,19 +5353,16 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
                 }
                 
                 body {
-                    font-family: 'Arial', 'Helvetica', sans-serif;
-                    font-size: 11px;
-                    line-height: 1.4;
-                    color: #2c3e50;
+                    font-family: Arial, sans-serif;
+                    font-size: 10px;
+                    line-height: 1.2;
+                    color: #000;
                     background: white;
-                    padding: 20px;
+                    padding: 8mm;
                 }
                 
                 .page {
-                    min-height: 100vh;
-                    padding: 0;
-                    margin: 0 auto;
-                    max-width: 210mm;
+                    width: 100%;
                     page-break-after: always;
                     background: white;
                 }
@@ -5374,218 +5373,148 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
                 
                 .page-header {
                     text-align: center;
-                    margin-bottom: 25px;
-                    padding: 15px 0;
-                    border-bottom: 3px solid #2c3e50;
+                    margin-bottom: 8mm;
+                    padding-bottom: 3mm;
+                    border-bottom: 2px solid #000;
                 }
                 
                 .page-title {
-                    font-size: 18px;
+                    font-size: 14px;
                     font-weight: bold;
-                    color: #2c3e50;
-                    margin-bottom: 5px;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                }
-                
-                .page-subtitle {
-                    font-size: 13px;
-                    color: #7f8c8d;
-                    margin-bottom: 8px;
+                    margin-bottom: 2mm;
                 }
                 
                 .page-info {
-                    font-size: 11px;
-                    color: #95a5a6;
+                    font-size: 9px;
+                    color: #666;
                 }
                 
                 .match-sheet {
-                    background: white;
-                    border: 2px solid #34495e;
-                    border-radius: 8px;
-                    padding: 15px;
-                    margin-bottom: 20px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    border: 1.5px solid #000;
+                    margin-bottom: 4mm;
+                    padding: 3mm;
                     page-break-inside: avoid;
+                    background: white;
                 }
                 
                 .match-header {
                     display: flex;
                     justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 15px;
-                    padding-bottom: 10px;
-                    border-bottom: 2px solid #ecf0f1;
+                    margin-bottom: 2mm;
+                    font-weight: bold;
+                    font-size: 11px;
                 }
                 
                 .match-id {
-                    font-weight: bold;
-                    font-size: 13px;
-                    color: #2c3e50;
-                    background: #ecf0f1;
-                    padding: 5px 10px;
-                    border-radius: 15px;
+                    background: #f0f0f0;
+                    padding: 1mm 2mm;
+                    border: 1px solid #666;
                 }
                 
-                .match-type {
-                    font-size: 11px;
-                    color: #7f8c8d;
-                    font-style: italic;
-                }
-                
-                .players-section {
+                .players-row {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 20px;
-                    padding: 10px;
-                    background: #f8f9fa;
-                    border-radius: 6px;
+                    margin-bottom: 3mm;
+                    font-size: 12px;
+                    font-weight: bold;
                 }
                 
                 .player-name {
-                    font-size: 14px;
-                    font-weight: bold;
-                    color: #2c3e50;
                     flex: 1;
                     text-align: center;
-                    padding: 8px;
-                    background: white;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    margin: 0 5px;
+                    padding: 2mm;
+                    border: 1px solid #000;
+                    background: #f8f8f8;
                 }
                 
-                .vs-separator {
-                    font-size: 16px;
-                    font-weight: bold;
-                    color: #e74c3c;
-                    margin: 0 10px;
+                .vs-text {
+                    padding: 0 3mm;
+                    font-size: 10px;
+                }
+                
+                .score-section {
+                    margin-bottom: 2mm;
                 }
                 
                 .score-table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 15px;
-                    border: 2px solid #34495e;
+                    font-size: 9px;
                 }
                 
                 .score-table th {
-                    background: #34495e;
+                    background: #000;
                     color: white;
-                    padding: 8px;
+                    padding: 1.5mm;
                     text-align: center;
-                    font-weight: bold;
-                    font-size: 11px;
-                    border: 1px solid #2c3e50;
+                    font-size: 8px;
+                    border: 1px solid #000;
                 }
                 
                 .score-table td {
-                    padding: 12px;
+                    padding: 2mm;
                     text-align: center;
-                    border: 1px solid #bdc3c7;
+                    border: 1px solid #000;
+                    height: 8mm;
+                }
+                
+                .player-col {
+                    background: #f0f0f0;
+                    font-weight: bold;
+                    font-size: 9px;
+                    width: 25%;
+                }
+                
+                .score-col {
+                    width: 15%;
                     background: white;
                 }
                 
-                .score-cell {
-                    width: 80px;
-                    height: 25px;
-                    border: 2px solid #3498db;
-                    background: #f8f9fa;
-                    margin: 0 auto;
-                    border-radius: 4px;
-                }
-                
-                .player-column {
-                    background: #ecf0f1 !important;
-                    font-weight: bold;
-                    color: #2c3e50;
-                    width: 150px;
-                }
-                
-                .sets-won-cell {
-                    background: #d5f4e6 !important;
-                    border: 2px solid #27ae60 !important;
+                .total-col {
+                    width: 15%;
+                    background: #e8e8e8;
                     font-weight: bold;
                 }
                 
-                .result-section {
+                .result-row {
                     display: flex;
                     justify-content: space-between;
-                    align-items: center;
-                    margin-top: 15px;
-                    padding: 10px;
-                    background: #f8f9fa;
-                    border-radius: 6px;
-                    border: 1px solid #ddd;
+                    font-size: 8px;
+                    margin-top: 1mm;
                 }
                 
-                .winner-box {
+                .result-box {
                     flex: 1;
-                    margin-right: 15px;
+                    margin: 0 1mm;
                 }
                 
-                .signature-box {
-                    flex: 1;
-                }
-                
-                .label {
-                    font-size: 10px;
-                    color: #7f8c8d;
-                    margin-bottom: 5px;
+                .result-label {
                     font-weight: bold;
-                    text-transform: uppercase;
+                    margin-bottom: 1mm;
                 }
                 
-                .input-line {
-                    border-bottom: 2px solid #3498db;
-                    height: 25px;
-                    background: white;
-                    border-radius: 2px;
+                .result-line {
+                    border-bottom: 1px solid #000;
+                    height: 5mm;
                 }
-                
-                .footer-info {
-                    text-align: center;
-                    margin-top: 15px;
-                    padding-top: 10px;
-                    border-top: 1px solid #ecf0f1;
-                    font-size: 9px;
-                    color: #95a5a6;
-                }
-                
-                .division-badge {
-                    display: inline-block;
-                    padding: 3px 8px;
-                    border-radius: 12px;
-                    font-size: 10px;
-                    font-weight: bold;
-                    margin-left: 8px;
-                }
-                
-                .division-1 { background: #ffe6e6; color: #c0392b; }
-                .division-2 { background: #fff3cd; color: #856404; }
-                .division-3 { background: #d4edda; color: #155724; }
                 
                 @media print {
                     body {
-                        padding: 0;
+                        padding: 5mm;
                         background: white !important;
                         -webkit-print-color-adjust: exact;
                         color-adjust: exact;
                     }
                     
                     .page {
-                        padding: 15mm;
                         margin: 0;
-                        max-width: none;
                         width: 100%;
-                        box-shadow: none;
                     }
                     
                     .match-sheet {
-                        box-shadow: none;
-                        border: 2px solid #000 !important;
-                        margin-bottom: 15px;
+                        border: 1.5px solid #000 !important;
+                        margin-bottom: 3mm;
                     }
                     
                     .score-table th {
@@ -5595,21 +5524,21 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
                         color-adjust: exact;
                     }
                     
-                    .player-column {
+                    .player-col {
                         background: #f0f0f0 !important;
                         -webkit-print-color-adjust: exact;
                         color-adjust: exact;
                     }
                     
-                    .sets-won-cell {
-                        background: #e8f5e8 !important;
+                    .total-col {
+                        background: #e8e8e8 !important;
                         -webkit-print-color-adjust: exact;
                         color-adjust: exact;
                     }
                 }
                 
                 @page {
-                    margin: 1cm;
+                    margin: 8mm;
                     size: A4 portrait;
                 }
             </style>
@@ -5622,15 +5551,14 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
         htmlContent += `
             <div class="page">
                 <div class="page-header">
-                    <div class="page-title">🏓 Feuilles de Match - Journée ${dayNumber}</div>
-                    <div class="page-subtitle">Championnat Tennis de Table - ${currentDate}</div>
-                    <div class="page-info">Page ${pageIndex + 1}/${matchPages.length} • ${pageMatches.length} matchs • Gestion Esenca Sport</div>
+                    <div class="page-title">🏓 FEUILLES DE MATCH - JOURNÉE ${dayNumber}</div>
+                    <div class="page-info">${currentDate} • Page ${pageIndex + 1}/${matchPages.length} • ${pageMatches.length} matchs</div>
                 </div>
         `;
         
         // Générer chaque match de la page
         pageMatches.forEach(match => {
-            htmlContent += generateSingleMatchSheet(match);
+            htmlContent += generateCompactMatchSheet(match);
         });
         
         htmlContent += `</div>`;
@@ -5644,12 +5572,10 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
     return htmlContent;
 }
 
-// Générer une feuille de match individuelle
-function generateSingleMatchSheet(match) {
-    const divisionClass = `division-${match.division}`;
-    const divisionName = match.division === 1 ? 'Division 1 🥇' : 
-                        match.division === 2 ? 'Division 2 🥈' : 
-                        'Division 3 🥉';
+// Générer une feuille de match compacte
+function generateCompactMatchSheet(match) {
+    const divisionName = match.division === 1 ? 'D1🥇' : 
+                        match.division === 2 ? 'D2🥈' : 'D3🥉';
     
     const matchInfo = match.type === 'Poule' ? 
         `${match.poolName}` : 
@@ -5658,64 +5584,67 @@ function generateSingleMatchSheet(match) {
     return `
         <div class="match-sheet">
             <div class="match-header">
-                <div class="match-id">
-                    ${match.matchId}
-                    <span class="division-badge ${divisionClass}">${divisionName}</span>
-                </div>
-                <div class="match-type">${match.type} • ${matchInfo}</div>
+                <div class="match-id">${match.matchId} • ${divisionName}</div>
+                <div>${match.type} • ${matchInfo}</div>
             </div>
             
-            <div class="players-section">
+            <div class="players-row">
                 <div class="player-name">${match.player1}</div>
-                <div class="vs-separator">VS</div>
+                <div class="vs-text">VS</div>
                 <div class="player-name">${match.player2}</div>
             </div>
             
-            <table class="score-table">
-                <thead>
-                    <tr>
-                        <th>Joueur</th>
-                        <th>Set 1</th>
-                        <th>Set 2</th>
-                        <th>Set 3</th>
-                        <th>Sets gagnés</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="player-column">${match.player1}</td>
-                        <td><div class="score-cell"></div></td>
-                        <td><div class="score-cell"></div></td>
-                        <td><div class="score-cell"></div></td>
-                        <td class="sets-won-cell"><div class="score-cell"></div></td>
-                    </tr>
-                    <tr>
-                        <td class="player-column">${match.player2}</td>
-                        <td><div class="score-cell"></div></td>
-                        <td><div class="score-cell"></div></td>
-                        <td><div class="score-cell"></div></td>
-                        <td class="sets-won-cell"><div class="score-cell"></div></td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <div class="result-section">
-                <div class="winner-box">
-                    <div class="label">🏆 Vainqueur :</div>
-                    <div class="input-line"></div>
-                </div>
-                <div class="signature-box">
-                    <div class="label">✍️ Signature arbitre :</div>
-                    <div class="input-line"></div>
-                </div>
+            <div class="score-section">
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th>JOUEUR</th>
+                            <th>SET 1</th>
+                            <th>SET 2</th>
+                            <th>SET 3</th>
+                            <th>TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="player-col">${match.player1}</td>
+                            <td class="score-col"></td>
+                            <td class="score-col"></td>
+                            <td class="score-col"></td>
+                            <td class="total-col"></td>
+                        </tr>
+                        <tr>
+                            <td class="player-col">${match.player2}</td>
+                            <td class="score-col"></td>
+                            <td class="score-col"></td>
+                            <td class="score-col"></td>
+                            <td class="total-col"></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
             
-            <div class="footer-info">
-                Match au meilleur des 3 sets • Premier à 11 points (écart de 2) • Retour à l'arbitrage après le match
+            <div class="result-row">
+                <div class="result-box">
+                    <div class="result-label">VAINQUEUR:</div>
+                    <div class="result-line"></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">ARBITRE:</div>
+                    <div class="result-line"></div>
+                </div>
             </div>
         </div>
     `;
 }
+
+// Exporter les nouvelles fonctions
+window.generateMatchSheetHTML = generateMatchSheetHTML;
+window.generateCompactMatchSheet = generateCompactMatchSheet;
+
+console.log('✅ Version compacte installée - 5 matchs par page optimisés !');
+
+
 
 // Ouvrir la fenêtre d'impression
 function openPrintWindow(htmlContent, filename) {
@@ -5791,7 +5720,7 @@ window.addPrintMatchesButton = addPrintMatchesButton;
 window.getDivisionMatches = getDivisionMatches;
 window.groupMatchesIntoPages = groupMatchesIntoPages;
 window.generateMatchSheetHTML = generateMatchSheetHTML;
-window.generateSingleMatchSheet = generateSingleMatchSheet;
+window.generateCompactMatchSheet = generateCompactMatchSheet;
 window.openPrintWindow = openPrintWindow;
 
 console.log('✅ Système d\'impression des feuilles de match installé !');
