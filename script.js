@@ -4957,7 +4957,210 @@ console.log("  - exportManualFinalResults() : Exporter les résultats");
 console.log("  - resetManualFinalPhase() : Réinitialiser");
 console.log("🏆 Contrôle total : Vous décidez quand passer au tour suivant !");
 
+// ======================================
+// CORRECTIF - SUPPRESSION SPINNERS ET AGRANDISSEMENT CHAMPS
+// ======================================
 
+// Ajouter ce CSS pour supprimer les spinners et agrandir les champs
+function addScoreInputStyles() {
+    // Vérifier si le style n'existe pas déjà
+    if (document.getElementById('score-input-styles')) {
+        return;
+    }
+    
+    const style = document.createElement('style');
+    style.id = 'score-input-styles';
+    style.textContent = `
+        /* Supprimer les spinners des inputs number */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+        }
+        
+        input[type="number"] {
+            -moz-appearance: textfield !important;
+        }
+        
+        /* Agrandir les champs de score dans les phases finales */
+        .manual-match input[type="number"] {
+            width: 45px !important;
+            height: 35px !important;
+            font-size: 15px !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            padding: 8px 4px !important;
+            border: 2px solid #007bff !important;
+            border-radius: 6px !important;
+            background: white !important;
+        }
+        
+        .manual-match input[type="number"]:focus {
+            border-color: #0056b3 !important;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25) !important;
+            outline: none !important;
+        }
+        
+        /* Améliorer aussi la lisibilité du séparateur */
+        .manual-match .sets span {
+            font-size: 16px !important;
+            font-weight: bold !important;
+            color: #495057 !important;
+            margin: 0 2px !important;
+        }
+        
+        /* Espacement des sets */
+        .manual-match .sets > div {
+            padding: 10px 8px !important;
+        }
+    `;
+    
+    document.head.appendChild(style);
+    console.log("✅ Styles des champs de score améliorés - Spinners supprimés, champs agrandis");
+}
+
+// Fonction pour mettre à jour le HTML de génération des matchs avec de plus gros champs
+function generateManualMatchHTMLImproved(dayNumber, division, match, roundName) {
+    const isCompleted = match.completed;
+    const isActive = !match.isBye;
+    
+    return `
+        <div class="manual-match" style="
+            background: ${isCompleted ? '#d5f4e6' : isActive ? 'white' : '#f8f9fa'};
+            border: 2px solid ${isCompleted ? '#28a745' : isActive ? '#007bff' : '#6c757d'};
+            border-radius: 10px;
+            padding: 15px;
+            ${match.isBye ? 'opacity: 0.7;' : ''}
+        ">
+            <div class="match-header" style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+            ">
+                <div class="match-title" style="
+                    font-size: 13px;
+                    color: #6c757d;
+                    font-weight: bold;
+                ">
+                    Match ${match.position}
+                </div>
+                <div class="match-status" style="
+                    font-size: 12px;
+                    padding: 4px 10px;
+                    border-radius: 15px;
+                    font-weight: bold;
+                    background: ${isCompleted ? '#d4edda' : isActive ? '#cce5ff' : '#e2e3e5'};
+                    color: ${isCompleted ? '#155724' : isActive ? '#004085' : '#6c757d'};
+                ">
+                    ${isCompleted ? 'Terminé ✅' : match.isBye ? 'Qualifié ⚡' : 'En cours 🎯'}
+                </div>
+            </div>
+            
+            <div class="players" style="
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: ${match.isBye ? '0' : '18px'};
+                font-size: 16px;
+                text-align: center;
+            ">
+                ${match.player1Seed ? `#${match.player1Seed}` : ''} ${match.player1}
+                ${!match.isBye ? ` VS ${match.player2Seed ? `#${match.player2Seed}` : ''} ${match.player2}` : ''}
+            </div>
+            
+            ${match.isBye ? `
+                <div style="
+                    text-align: center;
+                    color: #28a745;
+                    font-style: italic;
+                    padding: 10px;
+                ">
+                    Qualifié automatiquement
+                </div>
+            ` : `
+                <div class="sets" style="
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 12px;
+                    margin-bottom: 15px;
+                ">
+                    ${match.sets.map((set, setIndex) => `
+                        <div style="
+                            background: #f8f9fa;
+                            border: 1px solid #dee2e6;
+                            border-radius: 8px;
+                            padding: 10px 8px;
+                            text-align: center;
+                        ">
+                            <div style="font-size: 12px; color: #6c757d; margin-bottom: 5px; font-weight: bold;">
+                                Set ${setIndex + 1}
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                <input type="number" 
+                                       value="${set.player1Score || ''}" 
+                                       placeholder=""
+                                       min="0"
+                                       max="30"
+                                       onchange="updateManualMatchScore('${match.id}', ${setIndex}, 'player1Score', this.value, ${dayNumber})"
+                                       onkeydown="handleManualMatchEnter(event, '${match.id}', ${dayNumber})"
+                                       style="
+                                           width: 45px; 
+                                           height: 35px; 
+                                           text-align: center; 
+                                           border: 2px solid #007bff; 
+                                           border-radius: 6px; 
+                                           font-size: 15px;
+                                           font-weight: bold;
+                                           background: white;
+                                           padding: 8px 4px;
+                                       ">
+                                <span style="color: #495057; font-weight: bold; font-size: 16px; margin: 0 2px;">-</span>
+                                <input type="number" 
+                                       value="${set.player2Score || ''}" 
+                                       placeholder=""
+                                       min="0"
+                                       max="30"
+                                       onchange="updateManualMatchScore('${match.id}', ${setIndex}, 'player2Score', this.value, ${dayNumber})"
+                                       onkeydown="handleManualMatchEnter(event, '${match.id}', ${dayNumber})"
+                                       style="
+                                           width: 45px; 
+                                           height: 35px; 
+                                           text-align: center; 
+                                           border: 2px solid #007bff; 
+                                           border-radius: 6px; 
+                                           font-size: 15px;
+                                           font-weight: bold;
+                                           background: white;
+                                           padding: 8px 4px;
+                                       ">
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="match-result" style="
+                    text-align: center;
+                    padding: 10px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    background: ${isCompleted ? '#d4edda' : '#fff3cd'};
+                    color: ${isCompleted ? '#155724' : '#856404'};
+                    font-size: 14px;
+                ">
+                    ${isCompleted && match.winner ? `🏆 ${match.winner} gagne` : 'En attente des scores'}
+                </div>
+            `}
+        </div>
+    `;
+}
+
+// Remplacer la fonction existante
+window.generateManualMatchHTML = generateManualMatchHTMLImproved;
+
+// Appliquer les styles au chargement
+addScoreInputStyles();
+
+console.log("✅ Champs de score améliorés - Plus grands, sans spinners, meilleure UX !");
     console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
     
 } catch (error) {
