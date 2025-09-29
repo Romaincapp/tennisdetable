@@ -1494,60 +1494,97 @@ try {
         for (let division = 1; division <= 3; division++) {
             if (dayData.players[division].length === 0) continue;
             
-            const playerStats = dayData.players[division].map(player => ({
-                name: player,
-                ...calculatePlayerStats(dayNumber, division, player)
-            }));
+           const playerStats = dayData.players[division].map(player => {
+    const stats = calculatePlayerStats(dayNumber, division, player);
+    return {
+        name: player,
+        ...stats,
+        goalAverageSets: stats.setsWon - stats.setsLost,
+        goalAveragePoints: stats.pointsWon - stats.pointsLost
+    };
+});
+
+if (sortBy === 'points') {
+    // Tri standard tennis de table par points
+    playerStats.sort((a, b) => {
+        // 1. Points totaux
+        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+        
+        // 2. Goal-average de sets (différentiel)
+        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
+        
+        // 3. Goal-average de points (différentiel)
+        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
+        
+        // 4. Nombre de victoires
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        
+        // 5. Ordre alphabétique
+        return a.name.localeCompare(b.name);
+    });
+} else {
+    // Tri par % victoires
+    playerStats.sort((a, b) => {
+        // 1. % de victoires
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        
+        // 2. Nombre de matchs joués (favorise qui a joué plus)
+        if (b.matchesPlayed !== a.matchesPlayed) return b.matchesPlayed - a.matchesPlayed;
+        
+        // 3. Goal-average de sets
+        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
+        
+        // 4. Goal-average de points
+        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
+        
+        // 5. Ordre alphabétique
+        return a.name.localeCompare(b.name);
+    });
+}
             
-            if (sortBy === 'points') {
-                playerStats.sort((a, b) => {
-                    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-                    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-                    return b.setsWon - a.setsWon;
-                });
-            } else {
-                playerStats.sort((a, b) => {
-                    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-                    if (b.wins !== a.wins) return b.wins - a.wins;
-                    return b.setsWon - a.setsWon;
-                });
-            }
-            
-            rankingsHtml += `
-                <div style="margin-bottom: 30px;">
-                    <h3 style="color: #2c3e50; margin-bottom: 15px;">
-                        ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division}
-                    </h3>
-                    <table class="ranking-table">
-                        <thead>
-                            <tr>
-                                <th>Rang</th>
-                                <th>Joueur</th>
-                                <th>Points</th>
-                                <th>V/D</th>
-                                <th>% Vict.</th>
-                                <th>Sets</th>
-                                <th>Matchs</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            playerStats.forEach((player, index) => {
-                const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
-                
-                rankingsHtml += `
-                    <tr style="cursor: pointer;" onclick="showPlayerDetails(${dayNumber}, ${division}, '${player.name}')">
-                        <td class="rank-position ${rankClass}">${index + 1}</td>
-                        <td style="font-weight: 600;">${player.name}</td>
-                        <td class="stat-value">${player.totalPoints}</td>
-                        <td>${player.wins}/${player.losses}</td>
-                        <td>${player.winRate}%</td>
-                        <td>${player.setsWon}/${player.setsLost}</td>
-                        <td>${player.matchesPlayed}</td>
-                    </tr>
-                `;
-            });
+           rankingsHtml += `
+    <div style="margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 15px;">
+            ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division}
+        </h3>
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th>Rang</th>
+                    <th>Joueur</th>
+                    <th>Points</th>
+                    <th>V/D</th>
+                    <th>% Vict.</th>
+                    <th>Sets (G/P)</th>
+                    <th>GA Sets</th>
+                    <th>GA Points</th>
+                    <th>Matchs</th>
+                </tr>
+            </thead>
+            <tbody>
+`;
+
+playerStats.forEach((player, index) => {
+    const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
+    const gaSetStyle = player.goalAverageSets > 0 ? 'color: #27ae60; font-weight: bold;' : 
+                      player.goalAverageSets < 0 ? 'color: #e74c3c; font-weight: bold;' : '';
+    const gaPointStyle = player.goalAveragePoints > 0 ? 'color: #27ae60;' : 
+                        player.goalAveragePoints < 0 ? 'color: #e74c3c;' : '';
+    
+    rankingsHtml += `
+        <tr style="cursor: pointer;" onclick="showPlayerDetails(${dayNumber}, ${division}, '${player.name}')">
+            <td class="rank-position ${rankClass}">${index + 1}</td>
+            <td style="font-weight: 600;">${player.name}</td>
+            <td class="stat-value">${player.totalPoints}</td>
+            <td>${player.wins}/${player.losses}</td>
+            <td>${player.winRate}%</td>
+            <td>${player.setsWon}/${player.setsLost}</td>
+            <td style="${gaSetStyle}">${player.goalAverageSets > 0 ? '+' : ''}${player.goalAverageSets}</td>
+            <td style="${gaPointStyle}">${player.goalAveragePoints > 0 ? '+' : ''}${player.goalAveragePoints}</td>
+            <td>${player.matchesPlayed}</td>
+        </tr>
+    `;
+});
             
             rankingsHtml += `
                         </tbody>
@@ -1613,40 +1650,48 @@ try {
             if (generalRanking.divisions[division].length === 0) continue;
             
             rankingHtml += `
-                <div style="margin-bottom: 40px;">
-                    <h3 style="color: #e67e22; margin-bottom: 20px; font-size: 1.4rem;">
-                        ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division} - Classement Général
-                    </h3>
-                    <table class="ranking-table">
-                        <thead>
-                            <tr>
-                                <th>Rang</th>
-                                <th>Joueur</th>
-                                <th>Points Total</th>
-                                <th>Journées</th>
-                                <th>V/D Global</th>
-                                <th>% Vict. Moy.</th>
-                                <th>Sets Global</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            generalRanking.divisions[division].forEach((player, index) => {
-                const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
-                
-                rankingHtml += `
-                    <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
-                        <td class="rank-position ${rankClass}">${index + 1}</td>
-                        <td style="font-weight: 600;">${player.name}</td>
-                        <td class="stat-value">${player.totalPoints}</td>
-                        <td>${player.daysPlayed}</td>
-                        <td>${player.totalWins}/${player.totalLosses}</td>
-                        <td>${player.avgWinRate}%</td>
-                        <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
-                    </tr>
-                `;
-            });
+    <div style="margin-bottom: 40px;">
+        <h3 style="color: #e67e22; margin-bottom: 20px; font-size: 1.4rem;">
+            ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division} - Classement Général
+        </h3>
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th>Rang</th>
+                    <th>Joueur</th>
+                    <th>Points Total</th>
+                    <th>Journées</th>
+                    <th>V/D Global</th>
+                    <th>% Vict. Moy.</th>
+                    <th>Sets (G/P)</th>
+                    <th>GA Sets</th>
+                    <th>GA Points</th>
+                </tr>
+            </thead>
+            <tbody>
+`;
+
+generalRanking.divisions[division].forEach((player, index) => {
+    const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
+    const gaSetStyle = player.goalAverageSets > 0 ? 'color: #27ae60; font-weight: bold;' : 
+                      player.goalAverageSets < 0 ? 'color: #e74c3c; font-weight: bold;' : '';
+    const gaPointStyle = player.goalAveragePoints > 0 ? 'color: #27ae60;' : 
+                        player.goalAveragePoints < 0 ? 'color: #e74c3c;' : '';
+    
+    rankingHtml += `
+        <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
+            <td class="rank-position ${rankClass}">${index + 1}</td>
+            <td style="font-weight: 600;">${player.name}</td>
+            <td class="stat-value">${player.totalPoints}</td>
+            <td>${player.daysPlayed}</td>
+            <td>${player.totalWins}/${player.totalLosses}</td>
+            <td>${player.avgWinRate}%</td>
+            <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
+            <td style="${gaSetStyle}">${player.goalAverageSets > 0 ? '+' : ''}${player.goalAverageSets}</td>
+            <td style="${gaPointStyle}">${player.goalAveragePoints > 0 ? '+' : ''}${player.goalAveragePoints}</td>
+        </tr>
+    `;
+});
             
             rankingHtml += `
                         </tbody>
@@ -1698,48 +1743,65 @@ try {
                 const dayData = championship.days[dayNum];
                 
                 dayData.players[division].forEach(playerName => {
-                    if (!playersData[playerName]) {
-                        playersData[playerName] = {
-                            name: playerName,
-                            daysPlayed: 0,
-                            totalPoints: 0,
-                            totalWins: 0,
-                            totalLosses: 0,
-                            totalSetsWon: 0,
-                            totalSetsLost: 0,
-                            totalMatchesPlayed: 0,
-                            winRates: []
-                        };
-                    }
-                    
-                    const dayStats = calculatePlayerStats(dayNum, division, playerName);
-                    if (dayStats && dayStats.matchesPlayed > 0) {
-                        playersData[playerName].daysPlayed++;
-                        playersData[playerName].totalPoints += dayStats.totalPoints;
-                        playersData[playerName].totalWins += dayStats.wins;
-                        playersData[playerName].totalLosses += dayStats.losses;
-                        playersData[playerName].totalSetsWon += dayStats.setsWon;
-                        playersData[playerName].totalSetsLost += dayStats.setsLost;
-                        playersData[playerName].totalMatchesPlayed += dayStats.matchesPlayed;
-                        playersData[playerName].winRates.push(dayStats.winRate);
-                        
-                        generalRanking.hasData = true;
-                    }
+                   if (!playersData[playerName]) {
+    playersData[playerName] = {
+        name: playerName,
+        daysPlayed: 0,
+        totalPoints: 0,
+        totalWins: 0,
+        totalLosses: 0,
+        totalSetsWon: 0,
+        totalSetsLost: 0,
+        totalPointsWon: 0,
+        totalPointsLost: 0,
+        totalMatchesPlayed: 0,
+        winRates: []
+    };
+}
+
+const dayStats = calculatePlayerStats(dayNum, division, playerName);
+if (dayStats && dayStats.matchesPlayed > 0) {
+    playersData[playerName].daysPlayed++;
+    playersData[playerName].totalPoints += dayStats.totalPoints;
+    playersData[playerName].totalWins += dayStats.wins;
+    playersData[playerName].totalLosses += dayStats.losses;
+    playersData[playerName].totalSetsWon += dayStats.setsWon;
+    playersData[playerName].totalSetsLost += dayStats.setsLost;
+    playersData[playerName].totalPointsWon += dayStats.pointsWon;
+    playersData[playerName].totalPointsLost += dayStats.pointsLost;
+    playersData[playerName].totalMatchesPlayed += dayStats.matchesPlayed;
+    playersData[playerName].winRates.push(dayStats.winRate);
+    
+    generalRanking.hasData = true;
+}
                 });
             });
             
-            const playersArray = Object.values(playersData)
-                .filter(player => player.daysPlayed > 0)
-                .map(player => ({
-                    ...player,
-                    avgWinRate: player.winRates.length > 0 ? 
-                        Math.round(player.winRates.reduce((a, b) => a + b, 0) / player.winRates.length) : 0
-                }))
-                .sort((a, b) => {
-                    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-                    if (b.avgWinRate !== a.avgWinRate) return b.avgWinRate - a.avgWinRate;
-                    return b.totalSetsWon - a.totalSetsWon;
-                });
+           const playersArray = Object.values(playersData)
+    .filter(player => player.daysPlayed > 0)
+    .map(player => ({
+        ...player,
+        avgWinRate: player.winRates.length > 0 ? 
+            Math.round(player.winRates.reduce((a, b) => a + b, 0) / player.winRates.length) : 0,
+        goalAverageSets: player.totalSetsWon - player.totalSetsLost,
+        goalAveragePoints: player.totalPointsWon - player.totalPointsLost
+    }))
+    .sort((a, b) => {
+        // 1. Points totaux
+        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+        
+        // 2. Goal-average de sets
+        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
+        
+        // 3. Goal-average de points
+        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
+        
+        // 4. % victoires moyen
+        if (b.avgWinRate !== a.avgWinRate) return b.avgWinRate - a.avgWinRate;
+        
+        // 5. Ordre alphabétique
+        return a.name.localeCompare(b.name);
+    });
             
             generalRanking.divisions[division] = playersArray;
         }
