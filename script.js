@@ -2811,6 +2811,8 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
     }
     window.clearAllData = clearAllData;
 
+    window.clearAllData = clearAllData;
+
     // ======================================
     // GESTION DES MATCHS BYE MANUELS
     // ======================================
@@ -3019,7 +3021,6 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
         showNotification(`${addedCount} matchs BYE ajoutés automatiquement !`, 'success');
     }
     window.addByeToAll = addByeToAll;
-
     // ÉVÉNEMENTS
     function setupEventListeners() {
         const fileInput = document.getElementById('fileInput');
