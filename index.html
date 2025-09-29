@@ -124,20 +124,25 @@
                     </div>
 
                     <div class="control-buttons">
-                        <button class="btn btn-success" onclick="updateRankings()">
-                            🏆 Classements
-                        </button>
-                        <button class="btn" onclick="exportChampionship()">
-                            💾 Exporter JSON
-                        </button>
-                        <button class="btn" onclick="showImportModal()">
-                            📁 Importer JSON
-                        </button>
-                        <button class="btn btn-danger" onclick="clearAllData()">
-                            🗑️ Réinitialiser
-                        </button>
-
-                    </div>
+    <button class="btn btn-success" onclick="updateRankings()">
+        🏆 Afficher les Classements
+    </button>
+    <button class="btn" onclick="generateMatchesForDay(1)">
+        🎯 Générer les Matchs
+    </button>
+    <button class="btn" onclick="showByeManagementModal(1)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+        🎯 Gérer BYE
+    </button>
+    <button class="btn btn-danger" onclick="clearAllData()">
+        🗑️ Réinitialiser TOUT
+    </button>
+    <button class="btn" onclick="exportChampionship()">
+        💾 Exporter Championnat
+    </button>
+    <button class="btn" onclick="showImportModal()">
+        📥 Importer Championnat
+    </button>
+</div>
                 </div>
 
                 <div class="divisions" id="divisions-1">
