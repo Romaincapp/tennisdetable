@@ -1268,8 +1268,10 @@ try {
             losses,
             setsWon,
             setsLost,
+            setsDiff: setsWon - setsLost,
             pointsWon,
             pointsLost,
+            pointsDiff: pointsWon - pointsLost,
             winRate,
             totalPoints,
             matches: playerMatches
@@ -1502,13 +1504,16 @@ try {
             if (sortBy === 'points') {
                 playerStats.sort((a, b) => {
                     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-                    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+                    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+                    if (b.pointsDiff !== a.pointsDiff) return b.pointsDiff - a.pointsDiff;
                     return b.setsWon - a.setsWon;
                 });
             } else {
                 playerStats.sort((a, b) => {
                     if (b.winRate !== a.winRate) return b.winRate - a.winRate;
                     if (b.wins !== a.wins) return b.wins - a.wins;
+                    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+                    if (b.pointsDiff !== a.pointsDiff) return b.pointsDiff - a.pointsDiff;
                     return b.setsWon - a.setsWon;
                 });
             }
@@ -1707,6 +1712,8 @@ try {
                             totalLosses: 0,
                             totalSetsWon: 0,
                             totalSetsLost: 0,
+                            totalPointsWon: 0,
+                            totalPointsLost: 0,
                             totalMatchesPlayed: 0,
                             winRates: []
                         };
@@ -1720,9 +1727,11 @@ try {
                         playersData[playerName].totalLosses += dayStats.losses;
                         playersData[playerName].totalSetsWon += dayStats.setsWon;
                         playersData[playerName].totalSetsLost += dayStats.setsLost;
+                        playersData[playerName].totalPointsWon += dayStats.pointsWon;
+                        playersData[playerName].totalPointsLost += dayStats.pointsLost;
                         playersData[playerName].totalMatchesPlayed += dayStats.matchesPlayed;
                         playersData[playerName].winRates.push(dayStats.winRate);
-                        
+
                         generalRanking.hasData = true;
                     }
                 });
@@ -1732,13 +1741,16 @@ try {
                 .filter(player => player.daysPlayed > 0)
                 .map(player => ({
                     ...player,
-                    avgWinRate: player.winRates.length > 0 ? 
-                        Math.round(player.winRates.reduce((a, b) => a + b, 0) / player.winRates.length) : 0
+                    avgWinRate: player.winRates.length > 0 ?
+                        Math.round(player.winRates.reduce((a, b) => a + b, 0) / player.winRates.length) : 0,
+                    totalSetsDiff: player.totalSetsWon - player.totalSetsLost,
+                    totalPointsDiff: player.totalPointsWon - player.totalPointsLost
                 }))
                 .sort((a, b) => {
                     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-                    if (b.avgWinRate !== a.avgWinRate) return b.avgWinRate - a.avgWinRate;
-                    return b.totalSetsWon - a.totalSetsWon;
+                    if (b.totalSetsDiff !== a.totalSetsDiff) return b.totalSetsDiff - a.totalSetsDiff;
+                    if (b.totalPointsDiff !== a.totalPointsDiff) return b.totalPointsDiff - a.totalPointsDiff;
+                    return b.avgWinRate - a.avgWinRate;
                 });
             
             generalRanking.divisions[division] = playersArray;
@@ -3635,17 +3647,19 @@ function generatePoolRankingHTML(pool, poolMatches, poolIndex) {
             losses,
             setsWon,
             setsLost,
+            setsDiff: setsWon - setsLost,
             pointsWon,
             pointsLost,
+            pointsDiff: pointsWon - pointsLost,
             points: wins * 3 + losses * 1
         };
     });
-    
-    // Trier par points puis par sets puis par points de jeu
+
+    // Trier par points puis par différence de sets puis par différence de points
     playerStats.sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
-        if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
-        return b.pointsWon - a.pointsWon;
+        if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+        return b.pointsDiff - a.pointsDiff;
     });
     
     return `
@@ -3832,18 +3846,21 @@ function getQualifiedPlayersFromPools(pools, matches, qualifiedPerPool) {
             
             return {
                 name: player,
-                wins, losses, setsWon, setsLost, pointsWon, pointsLost,
+                wins, losses, setsWon, setsLost,
+                setsDiff: setsWon - setsLost,
+                pointsWon, pointsLost,
+                pointsDiff: pointsWon - pointsLost,
                 points: wins * 3 + losses * 1,
                 poolIndex: poolIndex,
                 poolName: String.fromCharCode(65 + poolIndex)
             };
         });
-        
-        // Trier et prendre les N premiers
+
+        // Trier par points puis par différence de sets puis par différence de points
         playerStats.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
-            if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
-            return b.pointsWon - a.pointsWon;
+            if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+            return b.pointsDiff - a.pointsDiff;
         });
         
         const qualified = playerStats.slice(0, qualifiedPerPool);
@@ -5207,18 +5224,21 @@ function getQualifiedPlayersFromPools(pools, matches, qualifiedPerPool) {
             
             return {
                 name: player,
-                wins, losses, setsWon, setsLost, pointsWon, pointsLost,
+                wins, losses, setsWon, setsLost,
+                setsDiff: setsWon - setsLost,
+                pointsWon, pointsLost,
+                pointsDiff: pointsWon - pointsLost,
                 points: wins * 3 + losses * 1,
                 poolIndex: poolIndex,
                 poolName: String.fromCharCode(65 + poolIndex)
             };
         });
-        
-        // Trier et prendre les N premiers
+
+        // Trier par points puis par différence de sets puis par différence de points
         playerStats.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
-            if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
-            return b.pointsWon - a.pointsWon;
+            if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+            return b.pointsDiff - a.pointsDiff;
         });
         
         const qualified = playerStats.slice(0, qualifiedPerPool);
