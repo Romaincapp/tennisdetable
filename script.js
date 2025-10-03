@@ -1995,8 +1995,8 @@ generalRanking.divisions[division].forEach((player, index) => {
                 
                 .header {
                     text-align: center;
-                    margin-bottom: 35px;
-                    padding: 25px;
+                    margin-bottom: 20px;
+                    padding: 20px;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
                     border-radius: 12px;
@@ -2037,8 +2037,8 @@ generalRanking.divisions[division].forEach((player, index) => {
                 
                 .stats-section {
                     background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-                    padding: 25px;
-                    margin-bottom: 35px;
+                    padding: 20px;
+                    margin-bottom: 20px;
                     border-radius: 12px;
                     border: 2px solid #f39c12;
                     position: relative;
@@ -2048,7 +2048,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                     font-size: 18px;
                     font-weight: bold;
                     color: #e67e22;
-                    margin-bottom: 20px;
+                    margin-bottom: 15px;
                     text-align: center;
                     text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
                 }
@@ -2091,7 +2091,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 }
                 
                 .division {
-                    margin-bottom: 45px;
+                    margin-bottom: 30px;
                     page-break-inside: avoid;
                     background: white;
                     border-radius: 12px;
@@ -2104,7 +2104,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                     font-weight: bold;
                     color: white;
                     margin-bottom: 0;
-                    padding: 18px;
+                    padding: 15px;
                     text-align: center;
                     text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
                     letter-spacing: 1px;
