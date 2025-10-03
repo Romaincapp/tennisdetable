@@ -1503,9 +1503,7 @@ try {
     const stats = calculatePlayerStats(dayNumber, division, player);
     return {
         name: player,
-        ...stats,
-        goalAverageSets: stats.setsWon - stats.setsLost,
-        goalAveragePoints: stats.pointsWon - stats.pointsLost
+        ...stats
     };
 });
 
@@ -1514,16 +1512,16 @@ if (sortBy === 'points') {
     playerStats.sort((a, b) => {
         // 1. Points totaux
         if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-        
-        // 2. Goal-average de sets (différentiel)
-        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
-        
-        // 3. Goal-average de points (différentiel)
-        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
-        
+
+        // 2. Différence de sets
+        if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+
+        // 3. Différence de points
+        if (b.pointsDiff !== a.pointsDiff) return b.pointsDiff - a.pointsDiff;
+
         // 4. Nombre de victoires
         if (b.wins !== a.wins) return b.wins - a.wins;
-        
+
         // 5. Ordre alphabétique
         return a.name.localeCompare(b.name);
     });
@@ -1532,16 +1530,16 @@ if (sortBy === 'points') {
     playerStats.sort((a, b) => {
         // 1. % de victoires
         if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-        
+
         // 2. Nombre de matchs joués (favorise qui a joué plus)
         if (b.matchesPlayed !== a.matchesPlayed) return b.matchesPlayed - a.matchesPlayed;
-        
-        // 3. Goal-average de sets
-        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
-        
-        // 4. Goal-average de points
-        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
-        
+
+        // 3. Différence de sets
+        if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+
+        // 4. Différence de points
+        if (b.pointsDiff !== a.pointsDiff) return b.pointsDiff - a.pointsDiff;
+
         // 5. Ordre alphabétique
         return a.name.localeCompare(b.name);
     });
@@ -1674,11 +1672,11 @@ if (sortBy === 'points') {
 
 generalRanking.divisions[division].forEach((player, index) => {
     const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
-    const gaSetStyle = player.goalAverageSets > 0 ? 'color: #27ae60; font-weight: bold;' : 
-                      player.goalAverageSets < 0 ? 'color: #e74c3c; font-weight: bold;' : '';
-    const gaPointStyle = player.goalAveragePoints > 0 ? 'color: #27ae60;' : 
-                        player.goalAveragePoints < 0 ? 'color: #e74c3c;' : '';
-    
+    const gaSetStyle = player.totalSetsDiff > 0 ? 'color: #27ae60; font-weight: bold;' :
+                      player.totalSetsDiff < 0 ? 'color: #e74c3c; font-weight: bold;' : '';
+    const gaPointStyle = player.totalPointsDiff > 0 ? 'color: #27ae60;' :
+                        player.totalPointsDiff < 0 ? 'color: #e74c3c;' : '';
+
     rankingHtml += `
         <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
             <td class="rank-position ${rankClass}">${index + 1}</td>
@@ -1688,8 +1686,8 @@ generalRanking.divisions[division].forEach((player, index) => {
             <td>${player.totalWins}/${player.totalLosses}</td>
             <td>${player.avgWinRate}%</td>
             <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
-            <td style="${gaSetStyle}">${player.goalAverageSets > 0 ? '+' : ''}${player.goalAverageSets}</td>
-            <td style="${gaPointStyle}">${player.goalAveragePoints > 0 ? '+' : ''}${player.goalAveragePoints}</td>
+            <td style="${gaSetStyle}">${player.totalSetsDiff > 0 ? '+' : ''}${player.totalSetsDiff}</td>
+            <td style="${gaPointStyle}">${player.totalPointsDiff > 0 ? '+' : ''}${player.totalPointsDiff}</td>
         </tr>
     `;
 });
@@ -1744,7 +1742,6 @@ generalRanking.divisions[division].forEach((player, index) => {
                 const dayData = championship.days[dayNum];
                 
                 dayData.players[division].forEach(playerName => {
-                    HEAD
                     if (!playersData[playerName]) {
                         playersData[playerName] = {
                             name: playerName,
