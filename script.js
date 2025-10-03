@@ -340,6 +340,9 @@ try {
                     <button class="btn btn-success" onclick="updateRankingsForDay(${dayNumber})">
                         🏆 Classements J${dayNumber}
                     </button>
+                    <button class="btn" onclick="showByeManagementModal(${dayNumber})" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+                        🎯 Gérer BYE
+                    </button>
                     <button class="btn" onclick="copyPlayersFromPreviousDay(${dayNumber})">
                         👥 Copier joueurs J${dayNumber-1}
                     </button>
@@ -1496,28 +1499,54 @@ try {
         for (let division = 1; division <= 3; division++) {
             if (dayData.players[division].length === 0) continue;
             
-            const playerStats = dayData.players[division].map(player => ({
-                name: player,
-                ...calculatePlayerStats(dayNumber, division, player)
-            }));
-            
-            if (sortBy === 'points') {
-                playerStats.sort((a, b) => {
-                    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-                    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
-                    if (b.pointsDiff !== a.pointsDiff) return b.pointsDiff - a.pointsDiff;
-                    return b.setsWon - a.setsWon;
-                });
-            } else {
-                playerStats.sort((a, b) => {
-                    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-                    if (b.wins !== a.wins) return b.wins - a.wins;
-                    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
-                    if (b.pointsDiff !== a.pointsDiff) return b.pointsDiff - a.pointsDiff;
-                    return b.setsWon - a.setsWon;
-                });
-            }
-            
+           const playerStats = dayData.players[division].map(player => {
+    const stats = calculatePlayerStats(dayNumber, division, player);
+    return {
+        name: player,
+        ...stats,
+        goalAverageSets: stats.setsWon - stats.setsLost,
+        goalAveragePoints: stats.pointsWon - stats.pointsLost
+    };
+});
+
+if (sortBy === 'points') {
+    // Tri standard tennis de table par points
+    playerStats.sort((a, b) => {
+        // 1. Points totaux
+        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+        
+        // 2. Goal-average de sets (différentiel)
+        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
+        
+        // 3. Goal-average de points (différentiel)
+        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
+        
+        // 4. Nombre de victoires
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        
+        // 5. Ordre alphabétique
+        return a.name.localeCompare(b.name);
+    });
+} else {
+    // Tri par % victoires
+    playerStats.sort((a, b) => {
+        // 1. % de victoires
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        
+        // 2. Nombre de matchs joués (favorise qui a joué plus)
+        if (b.matchesPlayed !== a.matchesPlayed) return b.matchesPlayed - a.matchesPlayed;
+        
+        // 3. Goal-average de sets
+        if (b.goalAverageSets !== a.goalAverageSets) return b.goalAverageSets - a.goalAverageSets;
+        
+        // 4. Goal-average de points
+        if (b.goalAveragePoints !== a.goalAveragePoints) return b.goalAveragePoints - a.goalAveragePoints;
+        
+        // 5. Ordre alphabétique
+        return a.name.localeCompare(b.name);
+    });
+}
+
             rankingsHtml += `
                 <div style="margin-bottom: 30px;">
                     <h3 style="color: #2c3e50; margin-bottom: 15px;">
@@ -1531,7 +1560,9 @@ try {
                                 <th>Points</th>
                                 <th>V/D</th>
                                 <th>% Vict.</th>
-                                <th>Sets</th>
+                                <th>Sets (G/P)</th>
+                                <th>Diff Sets</th>
+                                <th>Diff Points</th>
                                 <th>Matchs</th>
                             </tr>
                         </thead>
@@ -1549,6 +1580,8 @@ try {
                         <td>${player.wins}/${player.losses}</td>
                         <td>${player.winRate}%</td>
                         <td>${player.setsWon}/${player.setsLost}</td>
+                        <td>${player.setsDiff > 0 ? '+' : ''}${player.setsDiff}</td>
+                        <td>${player.pointsDiff > 0 ? '+' : ''}${player.pointsDiff}</td>
                         <td>${player.matchesPlayed}</td>
                     </tr>
                 `;
@@ -1618,40 +1651,48 @@ try {
             if (generalRanking.divisions[division].length === 0) continue;
             
             rankingHtml += `
-                <div style="margin-bottom: 40px;">
-                    <h3 style="color: #e67e22; margin-bottom: 20px; font-size: 1.4rem;">
-                        ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division} - Classement Général
-                    </h3>
-                    <table class="ranking-table">
-                        <thead>
-                            <tr>
-                                <th>Rang</th>
-                                <th>Joueur</th>
-                                <th>Points Total</th>
-                                <th>Journées</th>
-                                <th>V/D Global</th>
-                                <th>% Vict. Moy.</th>
-                                <th>Sets Global</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            generalRanking.divisions[division].forEach((player, index) => {
-                const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
-                
-                rankingHtml += `
-                    <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
-                        <td class="rank-position ${rankClass}">${index + 1}</td>
-                        <td style="font-weight: 600;">${player.name}</td>
-                        <td class="stat-value">${player.totalPoints}</td>
-                        <td>${player.daysPlayed}</td>
-                        <td>${player.totalWins}/${player.totalLosses}</td>
-                        <td>${player.avgWinRate}%</td>
-                        <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
-                    </tr>
-                `;
-            });
+    <div style="margin-bottom: 40px;">
+        <h3 style="color: #e67e22; margin-bottom: 20px; font-size: 1.4rem;">
+            ${division === 1 ? '🥇' : division === 2 ? '🥈' : '🥉'} Division ${division} - Classement Général
+        </h3>
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th>Rang</th>
+                    <th>Joueur</th>
+                    <th>Points Total</th>
+                    <th>Journées</th>
+                    <th>V/D Global</th>
+                    <th>% Vict. Moy.</th>
+                    <th>Sets (G/P)</th>
+                    <th>GA Sets</th>
+                    <th>GA Points</th>
+                </tr>
+            </thead>
+            <tbody>
+`;
+
+generalRanking.divisions[division].forEach((player, index) => {
+    const rankClass = index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : '';
+    const gaSetStyle = player.goalAverageSets > 0 ? 'color: #27ae60; font-weight: bold;' : 
+                      player.goalAverageSets < 0 ? 'color: #e74c3c; font-weight: bold;' : '';
+    const gaPointStyle = player.goalAveragePoints > 0 ? 'color: #27ae60;' : 
+                        player.goalAveragePoints < 0 ? 'color: #e74c3c;' : '';
+    
+    rankingHtml += `
+        <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
+            <td class="rank-position ${rankClass}">${index + 1}</td>
+            <td style="font-weight: 600;">${player.name}</td>
+            <td class="stat-value">${player.totalPoints}</td>
+            <td>${player.daysPlayed}</td>
+            <td>${player.totalWins}/${player.totalLosses}</td>
+            <td>${player.avgWinRate}%</td>
+            <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
+            <td style="${gaSetStyle}">${player.goalAverageSets > 0 ? '+' : ''}${player.goalAverageSets}</td>
+            <td style="${gaPointStyle}">${player.goalAveragePoints > 0 ? '+' : ''}${player.goalAveragePoints}</td>
+        </tr>
+    `;
+});
             
             rankingHtml += `
                         </tbody>
@@ -1703,6 +1744,7 @@ try {
                 const dayData = championship.days[dayNum];
                 
                 dayData.players[division].forEach(playerName => {
+<<<<<<< HEAD
                     if (!playersData[playerName]) {
                         playersData[playerName] = {
                             name: playerName,
@@ -1752,7 +1794,7 @@ try {
                     if (b.totalPointsDiff !== a.totalPointsDiff) return b.totalPointsDiff - a.totalPointsDiff;
                     return b.avgWinRate - a.avgWinRate;
                 });
-            
+
             generalRanking.divisions[division] = playersArray;
         }
         
@@ -2758,6 +2800,216 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
     }
     window.clearAllData = clearAllData;
 
+    window.clearAllData = clearAllData;
+
+    // ======================================
+    // GESTION DES MATCHS BYE MANUELS
+    // ======================================
+
+    function addByeMatchForPlayer(dayNumber, division, playerName) {
+        console.log(`Ajout d'un match BYE pour ${playerName} en D${division}-J${dayNumber}`);
+        
+        const dayData = championship.days[dayNumber];
+        if (!dayData) return;
+        
+        // Créer un match BYE (victoire automatique)
+        const byeMatch = {
+            player1: playerName,
+            player2: "BYE",
+            tour: 4, // Mettre au tour 4 par défaut
+            sets: [
+                { player1Score: 11, player2Score: 0 },
+                { player1Score: 11, player2Score: 0 },
+                { player1Score: '', player2Score: '' }
+            ],
+            completed: true,
+            winner: playerName,
+            isBye: true
+        };
+        
+        dayData.matches[division].push(byeMatch);
+        
+        updateMatchesDisplay(dayNumber);
+        updateStats(dayNumber);
+        saveToLocalStorage();
+        
+        showNotification(`Match BYE ajouté pour ${playerName} en D${division}`, 'success');
+    }
+    window.addByeMatchForPlayer = addByeMatchForPlayer;
+
+    function showByeManagementModal(dayNumber) {
+        console.log(`Affichage modal gestion BYE pour J${dayNumber}`);
+        
+        const dayData = championship.days[dayNumber];
+        if (!dayData) return;
+        
+        // Analyser qui a besoin de matchs BYE
+        let playersNeedingBye = [];
+        
+        for (let division = 1; division <= 3; division++) {
+            const players = dayData.players[division];
+            
+            players.forEach(player => {
+                const playerMatches = dayData.matches[division].filter(m => 
+                    m.player1 === player || m.player2 === player
+                );
+                
+                const matchCount = playerMatches.length;
+                
+                if (matchCount < 4) {
+                    playersNeedingBye.push({
+                        name: player,
+                        division: division,
+                        currentMatches: matchCount,
+                        missingMatches: 4 - matchCount
+                    });
+                }
+            });
+        }
+        
+        if (playersNeedingBye.length === 0) {
+            alert('✅ Tous les joueurs ont 4 matchs !\n\nAucun match BYE nécessaire.');
+            return;
+        }
+        
+        // Créer le contenu du modal
+        let modalHTML = `
+            <div style="max-height: 400px; overflow-y: auto;">
+                <p style="margin-bottom: 15px; color: #e67e22; font-weight: bold;">
+                    ⚠️ ${playersNeedingBye.length} joueur(s) ont moins de 4 matchs
+                </p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #34495e; color: white;">
+                            <th style="padding: 10px; text-align: left;">Joueur</th>
+                            <th style="padding: 10px; text-align: center;">Div</th>
+                            <th style="padding: 10px; text-align: center;">Matchs</th>
+                            <th style="padding: 10px; text-align: center;">Manquants</th>
+                            <th style="padding: 10px; text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        playersNeedingBye.forEach((player, index) => {
+            modalHTML += `
+                <tr style="border-bottom: 1px solid #ddd; ${index % 2 === 0 ? 'background: #f8f9fa;' : ''}">
+                    <td style="padding: 10px; font-weight: bold;">${player.name}</td>
+                    <td style="padding: 10px; text-align: center;">D${player.division}</td>
+                    <td style="padding: 10px; text-align: center;">${player.currentMatches}/4</td>
+                    <td style="padding: 10px; text-align: center; color: #e74c3c; font-weight: bold;">
+                        ${player.missingMatches}
+                    </td>
+                    <td style="padding: 10px; text-align: center;">
+                        <button onclick="addByeMatchForPlayer(${dayNumber}, ${player.division}, '${player.name}'); closeByeModal();" 
+                                style="
+                            background: linear-gradient(135deg, #27ae60, #2ecc71);
+                            color: white;
+                            border: none;
+                            padding: 8px 15px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">
+                            + BYE
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        modalHTML += `
+                    </tbody>
+                </table>
+                
+                <div style="
+                    margin-top: 20px;
+                    padding: 15px;
+                    background: #d5f4e6;
+                    border-radius: 8px;
+                    border-left: 4px solid #27ae60;
+                ">
+                    <strong>💡 Explication :</strong><br>
+                    Un match BYE donne automatiquement 3 points (victoire) + 2 sets gagnés au joueur.<br>
+                    Cela compense l'absence de 4ème adversaire avec un nombre impair de joueurs.
+                </div>
+            </div>
+        `;
+        
+        // Afficher dans un modal custom
+        const existingModal = document.getElementById('byeManagementModal');
+        if (existingModal) existingModal.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'byeManagementModal';
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 800px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: #2c3e50;">
+                        🎯 Gestion des Matchs BYE - Journée ${dayNumber}
+                    </h3>
+                    <button onclick="closeByeModal()" class="close-modal">×</button>
+                </div>
+                ${modalHTML}
+                <div class="modal-buttons" style="margin-top: 20px;">
+                    <button onclick="addByeToAll(${dayNumber}); closeByeModal();" class="btn btn-success">
+                        ✅ Ajouter BYE à TOUS
+                    </button>
+                    <button onclick="closeByeModal()" class="btn" style="background: #95a5a6;">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Fermer en cliquant en dehors
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeByeModal();
+            }
+        });
+    }
+    window.showByeManagementModal = showByeManagementModal;
+
+    function closeByeModal() {
+        const modal = document.getElementById('byeManagementModal');
+        if (modal) modal.remove();
+    }
+    window.closeByeModal = closeByeModal;
+
+    function addByeToAll(dayNumber) {
+        console.log(`Ajout de BYE à tous les joueurs manquants pour J${dayNumber}`);
+        
+        const dayData = championship.days[dayNumber];
+        if (!dayData) return;
+        
+        let addedCount = 0;
+        
+        for (let division = 1; division <= 3; division++) {
+            const players = dayData.players[division];
+            
+            players.forEach(player => {
+                const playerMatches = dayData.matches[division].filter(m => 
+                    m.player1 === player || m.player2 === player
+                );
+                
+                const matchCount = playerMatches.length;
+                const missingMatches = 4 - matchCount;
+                
+                for (let i = 0; i < missingMatches; i++) {
+                    addByeMatchForPlayer(dayNumber, division, player);
+                    addedCount++;
+                }
+            });
+        }
+        
+        showNotification(`${addedCount} matchs BYE ajoutés automatiquement !`, 'success');
+    }
+    window.addByeToAll = addByeToAll;
     // ÉVÉNEMENTS
     function setupEventListeners() {
         const fileInput = document.getElementById('fileInput');
