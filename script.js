@@ -1744,7 +1744,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 const dayData = championship.days[dayNum];
                 
                 dayData.players[division].forEach(playerName => {
-<<<<<<< HEAD
+                    HEAD
                     if (!playersData[playerName]) {
                         playersData[playerName] = {
                             name: playerName,
