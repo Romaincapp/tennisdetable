@@ -211,12 +211,14 @@ try {
             if (players.length === 0) {
                 container.innerHTML = '<div class="empty-state">Aucun joueur</div>';
             } else {
-                container.innerHTML = players.map(player => 
-                    `<div class="player-tag" onclick="showPlayerDetails(${dayNumber}, ${division}, '${player}')">
+                container.innerHTML = players.map(player => {
+                    const escapedPlayer = player.replace(/'/g, "\\'");
+                    return `<div class="player-tag" onclick="showPlayerDetails(${dayNumber}, ${division}, '${escapedPlayer}')">
                         ${player}
-                        <button class="remove-player" onclick="event.stopPropagation(); removePlayer(${dayNumber}, ${division}, '${player}')" title="Supprimer">×</button>
-                    </div>`
-                ).join('');
+                        <button class="edit-player" onclick="event.stopPropagation(); showEditPlayerModal(${dayNumber}, ${division}, '${escapedPlayer}')" title="Modifier">✏️</button>
+                        <button class="remove-player" onclick="event.stopPropagation(); showDeletePlayerModal(${dayNumber}, ${division}, '${escapedPlayer}')" title="Supprimer">×</button>
+                    </div>`;
+                }).join('');
             }
         }
     }
@@ -235,6 +237,250 @@ try {
         showNotification(`${playerName} supprimé`, 'warning');
     }
     window.removePlayer = removePlayer;
+
+    // ÉDITION DE JOUEUR
+    let editPlayerData = null;
+
+    function showEditPlayerModal(dayNumber, division, playerName) {
+        editPlayerData = { dayNumber, division, playerName };
+
+        document.getElementById('currentPlayerName').textContent = playerName;
+        document.getElementById('currentPlayerDivision').textContent = `Division ${division}`;
+        document.getElementById('newPlayerName').value = playerName;
+
+        // Calculer l'impact de la modification
+        let totalDays = 0;
+        let totalMatches = 0;
+
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+            if (championship.days[dayNum].players[division].includes(playerName)) {
+                totalDays++;
+                const matchesInDay = championship.days[dayNum].matches[division].filter(match =>
+                    match.player1 === playerName || match.player2 === playerName
+                ).length;
+                totalMatches += matchesInDay;
+            }
+        });
+
+        document.getElementById('editPlayerInfo').innerHTML =
+            `<strong>📊 Impact de la modification :</strong><br>
+            • Présent dans <strong>${totalDays}</strong> journée(s)<br>
+            • <strong>${totalMatches}</strong> match(s) seront mis à jour`;
+
+        document.getElementById('editPlayerModal').style.display = 'flex';
+
+        // Focus sur le champ de saisie
+        setTimeout(() => {
+            const input = document.getElementById('newPlayerName');
+            input.focus();
+            input.select();
+        }, 100);
+    }
+    window.showEditPlayerModal = showEditPlayerModal;
+
+    function closeEditPlayerModal() {
+        document.getElementById('editPlayerModal').style.display = 'none';
+        editPlayerData = null;
+    }
+    window.closeEditPlayerModal = closeEditPlayerModal;
+
+    function confirmEditPlayer() {
+        if (!editPlayerData) {
+            console.error('editPlayerData est null');
+            closeEditPlayerModal();
+            return;
+        }
+
+        const newName = document.getElementById('newPlayerName').value.trim();
+
+        if (!newName) {
+            showNotification('Le nom ne peut pas être vide', 'error');
+            return;
+        }
+
+        if (newName === editPlayerData.playerName) {
+            showNotification('Le nouveau nom est identique à l\'ancien', 'warning');
+            closeEditPlayerModal();
+            return;
+        }
+
+        // Vérifier si le nouveau nom existe déjà dans la même division
+        const nameExists = Object.keys(championship.days).some(day => {
+            const dayNum = parseInt(day);
+            return championship.days[dayNum].players[editPlayerData.division].includes(newName);
+        });
+
+        if (nameExists) {
+            showNotification(`Un joueur nommé "${newName}" existe déjà dans la Division ${editPlayerData.division}`, 'error');
+            return;
+        }
+
+        // Effectuer la modification
+        editPlayerName(editPlayerData.playerName, newName, editPlayerData.division);
+
+        // Fermer le modal
+        closeEditPlayerModal();
+    }
+    window.confirmEditPlayer = confirmEditPlayer;
+
+    function editPlayerName(oldName, newName, division) {
+        console.log(`Édition du joueur: ${oldName} -> ${newName} dans Division ${division}`);
+
+        let daysUpdated = 0;
+        let matchesUpdated = 0;
+
+        // Parcourir toutes les journées
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+
+            // Mettre à jour dans le tableau des joueurs
+            const playerIndex = championship.days[dayNum].players[division].indexOf(oldName);
+            if (playerIndex !== -1) {
+                championship.days[dayNum].players[division][playerIndex] = newName;
+                daysUpdated++;
+            }
+
+            // Mettre à jour dans tous les matchs
+            championship.days[dayNum].matches[division].forEach(match => {
+                if (match.player1 === oldName) {
+                    match.player1 = newName;
+                    matchesUpdated++;
+                }
+                if (match.player2 === oldName) {
+                    match.player2 = newName;
+                    matchesUpdated++;
+                }
+                if (match.winner === oldName) {
+                    match.winner = newName;
+                }
+            });
+        });
+
+        // Sauvegarder et rafraîchir l'affichage
+        saveToLocalStorage();
+
+        // Rafraîchir tous les affichages
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+            updatePlayersDisplay(dayNum);
+            updateMatchesDisplay(dayNum);
+            updateStats(dayNum);
+        });
+
+        showNotification(`${oldName} renommé en ${newName} (${daysUpdated} journée(s), ${matchesUpdated} match(s) mis à jour)`, 'success');
+    }
+    window.editPlayerName = editPlayerName;
+
+    // SUPPRESSION DE JOUEUR AVEC CONFIRMATION
+    let deletePlayerData = null;
+
+    function showDeletePlayerModal(dayNumber, division, playerName) {
+        deletePlayerData = { dayNumber, division, playerName };
+
+        document.getElementById('deletePlayerName').textContent = playerName;
+
+        // Calculer l'impact de la suppression
+        let totalDays = 0;
+        let totalMatches = 0;
+        let matchDetails = [];
+
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+            if (championship.days[dayNum].players[division].includes(playerName)) {
+                totalDays++;
+                const matchesInDay = championship.days[dayNum].matches[division].filter(match =>
+                    match.player1 === playerName || match.player2 === playerName
+                );
+                totalMatches += matchesInDay.length;
+
+                if (matchesInDay.length > 0) {
+                    matchDetails.push(`Journée ${dayNum}: ${matchesInDay.length} match(s)`);
+                }
+            }
+        });
+
+        let statsHTML = `
+            <strong>📊 Cette suppression affectera :</strong><br>
+            • <strong>${totalDays}</strong> journée(s)<br>
+            • <strong>${totalMatches}</strong> match(s) seront supprimés<br>
+        `;
+
+        if (matchDetails.length > 0) {
+            statsHTML += `<br><strong>Détails :</strong><br>`;
+            matchDetails.forEach(detail => {
+                statsHTML += `• ${detail}<br>`;
+            });
+        }
+
+        document.getElementById('deletePlayerStats').innerHTML = statsHTML;
+        document.getElementById('deletePlayerModal').style.display = 'flex';
+    }
+    window.showDeletePlayerModal = showDeletePlayerModal;
+
+    function closeDeletePlayerModal() {
+        document.getElementById('deletePlayerModal').style.display = 'none';
+        deletePlayerData = null;
+    }
+    window.closeDeletePlayerModal = closeDeletePlayerModal;
+
+    function confirmDeletePlayer() {
+        if (!deletePlayerData) return;
+
+        const { playerName, division } = deletePlayerData;
+
+        // Supprimer le joueur de toutes les journées
+        removePlayerGlobally(playerName, division);
+
+        closeDeletePlayerModal();
+    }
+    window.confirmDeletePlayer = confirmDeletePlayer;
+
+    function removePlayerGlobally(playerName, division) {
+        console.log(`Suppression globale du joueur: ${playerName} de Division ${division}`);
+
+        let daysUpdated = 0;
+        let matchesDeleted = 0;
+
+        // Parcourir toutes les journées
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+
+            // Vérifier si le joueur est présent dans cette journée
+            const wasPresent = championship.days[dayNum].players[division].includes(playerName);
+
+            if (wasPresent) {
+                daysUpdated++;
+
+                // Supprimer du tableau des joueurs
+                championship.days[dayNum].players[division] =
+                    championship.days[dayNum].players[division].filter(p => p !== playerName);
+
+                // Compter et supprimer les matchs
+                const matchesBefore = championship.days[dayNum].matches[division].length;
+                championship.days[dayNum].matches[division] =
+                    championship.days[dayNum].matches[division].filter(match =>
+                        match.player1 !== playerName && match.player2 !== playerName
+                    );
+                const matchesAfter = championship.days[dayNum].matches[division].length;
+                matchesDeleted += (matchesBefore - matchesAfter);
+            }
+        });
+
+        // Sauvegarder et rafraîchir l'affichage
+        saveToLocalStorage();
+
+        // Rafraîchir tous les affichages
+        Object.keys(championship.days).forEach(day => {
+            const dayNum = parseInt(day);
+            updatePlayersDisplay(dayNum);
+            updateMatchesDisplay(dayNum);
+            updateStats(dayNum);
+        });
+
+        showNotification(`${playerName} supprimé de ${daysUpdated} journée(s) (${matchesDeleted} match(s) supprimés)`, 'warning');
+    }
+    window.removePlayerGlobally = removePlayerGlobally;
 
     // GESTION DES ONGLETS ET JOURNÉES
     function addNewDay() {
@@ -720,29 +966,49 @@ try {
                         const matchStatus = match.completed ? 'completed' : 'pending';
                         const statusClass = match.completed ? 'status-completed' : 'status-pending';
                         const statusText = match.completed ? 'Terminé' : 'En cours';
-                        
+                        const collapsedClass = match.completed ? 'collapsed' : '';
+                        const arrowIcon = match.completed ? '▶' : '▼';
+
                         html += `
-                            <div class="match ${matchStatus}" data-match-id="d${dayNumber}-div${division}-m${globalIndex}">
-                                <div class="match-header">
-                                    <div class="player-names">${match.player1} VS ${match.player2}</div>
+                            <div class="match ${matchStatus} ${collapsedClass}" data-match-id="d${dayNumber}-div${division}-m${globalIndex}">
+                                <div class="match-header" onclick="toggleMatch(${dayNumber}, ${division}, ${globalIndex})">
+                                    <div class="match-header-left">
+                                        <span class="match-collapse-arrow" id="match-arrow-${dayNumber}-${division}-${globalIndex}">${arrowIcon}</span>
+                                        <div class="player-names">${match.player1} VS ${match.player2}</div>
+                                    </div>
                                     <div class="match-status ${statusClass}">${statusText}</div>
                                 </div>
+                                <div class="match-details" id="match-details-${dayNumber}-${division}-${globalIndex}">
                                 <div class="sets-container">
                         `;
-                        
+
+                        // Initialiser le tableau sets s'il n'existe pas
+                        if (!match.sets || !Array.isArray(match.sets)) {
+                            match.sets = [
+                                { player1Score: '', player2Score: '' },
+                                { player1Score: '', player2Score: '' },
+                                { player1Score: '', player2Score: '' }
+                            ];
+                        }
+
                         for (let setIndex = 0; setIndex < 3; setIndex++) {
+                            // Vérifier et initialiser le set si nécessaire
+                            if (!match.sets[setIndex]) {
+                                match.sets[setIndex] = { player1Score: '', player2Score: '' };
+                            }
+
                             let setClass = 'set';
                             let setDisabled = '';
-                            
+
                             if (match.completed && setIndex === 2) {
                                 let player1Sets = 0;
                                 let player2Sets = 0;
-                                
+
                                 for (let i = 0; i < 2; i++) {
                                     if (match.sets[i] && match.sets[i].player1Score !== '' && match.sets[i].player2Score !== '') {
                                         const score1 = parseInt(match.sets[i].player1Score);
                                         const score2 = parseInt(match.sets[i].player2Score);
-                                        
+
                                         if (score1 > score2) {
                                             player1Sets++;
                                         } else if (score2 > score1) {
@@ -750,18 +1016,18 @@ try {
                                         }
                                     }
                                 }
-                                
+
                                 if (player1Sets >= 2 || player2Sets >= 2) {
                                     setClass += ' set-disabled';
                                     setDisabled = 'disabled';
                                 }
                             }
-                            
+
                             html += `
                                 <div class="${setClass}">
                                     <div class="set-label">Set ${setIndex + 1}</div>
                                     <div class="set-scores">
-                                        <input type="number" class="score-input" 
+                                        <input type="number" class="score-input"
                                                placeholder="" min="0" max="30"
                                                value="${match.sets[setIndex].player1Score || ''}" 
                                                ${setDisabled}
@@ -810,6 +1076,7 @@ try {
                                 </div>
                                 <div class="match-result ${resultClass}">
                                     ${resultText}
+                                </div>
                                 </div>
                             </div>
                         `;
@@ -1183,33 +1450,85 @@ try {
     function initializeDivisionsDisplay(dayNumber = 1) {
         const divisionsContainer = document.getElementById(`divisions-${dayNumber}`);
         if (!divisionsContainer) return;
-        
+
         divisionsContainer.innerHTML = `
             <div class="division division-1">
-                <h3>🥇 Division 1</h3>
-                <div class="players-list" id="division${dayNumber}-1-players">
-                    <div class="empty-state">Aucun joueur</div>
+                <h3 class="division-header" onclick="togglePlayersSection(${dayNumber}, 1)">
+                    <span class="division-title">🥇 Division 1</span>
+                    <span class="collapse-arrow" id="arrow-${dayNumber}-1">▼</span>
+                </h3>
+                <div class="players-section" id="players-section-${dayNumber}-1">
+                    <div class="players-list" id="division${dayNumber}-1-players">
+                        <div class="empty-state">Aucun joueur</div>
+                    </div>
                 </div>
                 <div class="matches-container" id="division${dayNumber}-1-matches"></div>
             </div>
-            
+
             <div class="division division-2">
-                <h3>🥈 Division 2</h3>
-                <div class="players-list" id="division${dayNumber}-2-players">
-                    <div class="empty-state">Aucun joueur</div>
+                <h3 class="division-header" onclick="togglePlayersSection(${dayNumber}, 2)">
+                    <span class="division-title">🥈 Division 2</span>
+                    <span class="collapse-arrow" id="arrow-${dayNumber}-2">▼</span>
+                </h3>
+                <div class="players-section" id="players-section-${dayNumber}-2">
+                    <div class="players-list" id="division${dayNumber}-2-players">
+                        <div class="empty-state">Aucun joueur</div>
+                    </div>
                 </div>
                 <div class="matches-container" id="division${dayNumber}-2-matches"></div>
             </div>
-            
+
             <div class="division division-3">
-                <h3>🥉 Division 3</h3>
-                <div class="players-list" id="division${dayNumber}-3-players">
-                    <div class="empty-state">Aucun joueur</div>
+                <h3 class="division-header" onclick="togglePlayersSection(${dayNumber}, 3)">
+                    <span class="division-title">🥉 Division 3</span>
+                    <span class="collapse-arrow" id="arrow-${dayNumber}-3">▼</span>
+                </h3>
+                <div class="players-section" id="players-section-${dayNumber}-3">
+                    <div class="players-list" id="division${dayNumber}-3-players">
+                        <div class="empty-state">Aucun joueur</div>
+                    </div>
                 </div>
                 <div class="matches-container" id="division${dayNumber}-3-matches"></div>
             </div>
         `;
     }
+
+    // COLLAPSE/EXPAND DES SECTIONS DE JOUEURS
+    function togglePlayersSection(dayNumber, division) {
+        const section = document.getElementById(`players-section-${dayNumber}-${division}`);
+        const arrow = document.getElementById(`arrow-${dayNumber}-${division}`);
+
+        if (!section || !arrow) return;
+
+        if (section.style.display === 'none') {
+            section.style.display = 'block';
+            arrow.textContent = '▼';
+            arrow.classList.remove('collapsed');
+        } else {
+            section.style.display = 'none';
+            arrow.textContent = '▶';
+            arrow.classList.add('collapsed');
+        }
+    }
+    window.togglePlayersSection = togglePlayersSection;
+
+    // COLLAPSE/EXPAND DES MATCHS
+    function toggleMatch(dayNumber, division, matchIndex) {
+        const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
+        const detailsElement = document.getElementById(`match-details-${dayNumber}-${division}-${matchIndex}`);
+        const arrowElement = document.getElementById(`match-arrow-${dayNumber}-${division}-${matchIndex}`);
+
+        if (!matchElement || !detailsElement || !arrowElement) return;
+
+        if (matchElement.classList.contains('collapsed')) {
+            matchElement.classList.remove('collapsed');
+            arrowElement.textContent = '▼';
+        } else {
+            matchElement.classList.add('collapsed');
+            arrowElement.textContent = '▶';
+        }
+    }
+    window.toggleMatch = toggleMatch;
 
     // STATISTIQUES ET CLASSEMENTS
     function calculatePlayerStats(dayNumber, division, playerName) {
@@ -3025,7 +3344,7 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
                 });
             }
         });
-        
+
         const playerModal = document.getElementById('playerModal');
         if (playerModal) {
             playerModal.addEventListener('click', function(event) {
@@ -3034,12 +3353,33 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
                 }
             });
         }
-        
+
+        // Gestion des nouveaux modals d'édition et suppression
+        const editPlayerModal = document.getElementById('editPlayerModal');
+        if (editPlayerModal) {
+            editPlayerModal.addEventListener('click', function(event) {
+                if (event.target === this) {
+                    closeEditPlayerModal();
+                }
+            });
+        }
+
+        const deletePlayerModal = document.getElementById('deletePlayerModal');
+        if (deletePlayerModal) {
+            deletePlayerModal.addEventListener('click', function(event) {
+                if (event.target === this) {
+                    closeDeletePlayerModal();
+                }
+            });
+        }
+
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeBulkModal();
                 closePlayerModal();
                 closeImportModal();
+                closeEditPlayerModal();
+                closeDeletePlayerModal();
             }
         });
         
@@ -3048,6 +3388,17 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
             playerNameInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     addPlayer();
+                }
+            });
+        }
+
+        // Event listener pour le champ d'édition de joueur
+        const newPlayerNameInput = document.getElementById('newPlayerName');
+        if (newPlayerNameInput) {
+            newPlayerNameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmEditPlayer();
                 }
             });
         }
@@ -5533,17 +5884,17 @@ function printMatchSheets(dayNumber) {
         alert('⚠️ Aucun match généré pour cette journée !\n\nVeuillez d\'abord générer les matchs ou les poules.');
         return;
     }
-    
-    // Grouper les matchs par pages (5 matchs par page A4)
-    const matchPages = groupMatchesIntoPages(allMatches, 5);
-    
+
+    // Grouper les matchs par pages (4 matchs par page : 1 de chaque tour)
+    const matchPages = groupMatchesIntoPages(allMatches);
+
     // Générer le HTML d'impression
     const printHTML = generateMatchSheetHTML(dayNumber, matchPages);
-    
+
     // Ouvrir dans une nouvelle fenêtre pour impression
     openPrintWindow(printHTML, `Feuilles_de_match_J${dayNumber}`);
-    
-    showNotification(`📋 ${allMatches.length} feuilles de match générées !`, 'success');
+
+    showNotification(`📋 ${matchPages.length} page(s) générée(s) - ${allMatches.length} matchs au total !`, 'success');
 }
 
 // Récupérer les matchs d'une division (Round-Robin ou Poules)
@@ -5586,14 +5937,50 @@ function getDivisionMatches(dayData, division, dayNumber) {
     return matches;
 }
 
-// Grouper les matchs en pages
+// Grouper les matchs en pages - 1 match de chaque tour par page (4 matchs/page)
 function groupMatchesIntoPages(matches, matchesPerPage) {
     const pages = [];
-    
-    for (let i = 0; i < matches.length; i += matchesPerPage) {
-        pages.push(matches.slice(i, i + matchesPerPage));
+
+    // Séparer les matchs par tour
+    const matchesByTour = {
+        1: [],
+        2: [],
+        3: [],
+        4: []
+    };
+
+    // Grouper les matchs par tour
+    matches.forEach(match => {
+        if (match.tour && matchesByTour[match.tour]) {
+            matchesByTour[match.tour].push(match);
+        }
+    });
+
+    // Déterminer le nombre maximum de matchs dans un tour
+    const maxMatchesInAnyTour = Math.max(
+        matchesByTour[1].length,
+        matchesByTour[2].length,
+        matchesByTour[3].length,
+        matchesByTour[4].length
+    );
+
+    // Créer les pages : chaque page contient 1 match de chaque tour
+    for (let i = 0; i < maxMatchesInAnyTour; i++) {
+        const page = [];
+
+        // Ajouter un match de chaque tour (dans l'ordre : tour 1, 2, 3, 4)
+        for (let tour = 1; tour <= 4; tour++) {
+            if (matchesByTour[tour][i]) {
+                page.push(matchesByTour[tour][i]);
+            }
+        }
+
+        // N'ajouter la page que si elle contient au moins un match
+        if (page.length > 0) {
+            pages.push(page);
+        }
     }
-    
+
     return pages;
 }
 
@@ -5623,109 +6010,125 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
                 
                 body {
                     font-family: Arial, sans-serif;
-                    font-size: 10px;
-                    line-height: 1.2;
+                    font-size: 9px;
+                    line-height: 1.1;
                     color: #000;
                     background: white;
-                    padding: 8mm;
+                    padding: 4mm;
                 }
-                
+
                 .page {
                     width: 100%;
                     page-break-after: always;
                     background: white;
+                    height: 277mm;
                 }
-                
+
                 .page:last-child {
                     page-break-after: avoid;
                 }
-                
+
                 .page-header {
                     text-align: center;
-                    margin-bottom: 8mm;
-                    padding-bottom: 3mm;
-                    border-bottom: 2px solid #000;
+                    margin-bottom: 3mm;
+                    padding-bottom: 2mm;
+                    border-bottom: 1.5px solid #000;
                 }
-                
+
                 .page-title {
-                    font-size: 14px;
+                    font-size: 12px;
                     font-weight: bold;
-                    margin-bottom: 2mm;
+                    margin-bottom: 1mm;
                 }
-                
+
                 .page-info {
-                    font-size: 9px;
+                    font-size: 8px;
                     color: #666;
                 }
-                
+
                 .match-sheet {
                     border: 1.5px solid #000;
-                    margin-bottom: 4mm;
-                    padding: 3mm;
+                    margin-bottom: 0;
+                    padding: 2mm;
                     page-break-inside: avoid;
                     background: white;
+                    position: relative;
+                    height: 65mm;
                 }
-                
+
+                .match-sheet:not(:last-child)::after {
+                    content: "✂️ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂️";
+                    display: block;
+                    text-align: center;
+                    color: #999;
+                    font-size: 7px;
+                    margin: 1.5mm -2mm -2mm -2mm;
+                    padding: 0.5mm 0;
+                    letter-spacing: 0.5px;
+                }
+
                 .match-header {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 2mm;
+                    margin-bottom: 1.5mm;
                     font-weight: bold;
-                    font-size: 11px;
+                    font-size: 9px;
                 }
-                
+
                 .match-id {
                     background: #f0f0f0;
-                    padding: 1mm 2mm;
+                    padding: 0.5mm 1.5mm;
                     border: 1px solid #666;
+                    font-size: 8px;
                 }
-                
+
                 .players-row {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 3mm;
-                    font-size: 12px;
+                    margin-bottom: 2mm;
+                    font-size: 10px;
                     font-weight: bold;
                 }
-                
+
                 .player-name {
                     flex: 1;
                     text-align: center;
-                    padding: 2mm;
+                    padding: 1.5mm;
                     border: 1px solid #000;
                     background: #f8f8f8;
+                    font-size: 9px;
                 }
-                
+
                 .vs-text {
-                    padding: 0 3mm;
-                    font-size: 10px;
+                    padding: 0 2mm;
+                    font-size: 8px;
                 }
-                
+
                 .score-section {
-                    margin-bottom: 2mm;
+                    margin-bottom: 1mm;
                 }
-                
+
                 .score-table {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 9px;
+                    font-size: 8px;
                 }
-                
+
                 .score-table th {
                     background: #000;
                     color: white;
-                    padding: 1.5mm;
+                    padding: 1mm;
                     text-align: center;
-                    font-size: 8px;
+                    font-size: 7px;
                     border: 1px solid #000;
                 }
-                
+
                 .score-table td {
-                    padding: 2mm;
+                    padding: 1mm;
                     text-align: center;
                     border: 1px solid #000;
-                    height: 8mm;
+                    height: 6mm;
                 }
                 
                 .player-col {
@@ -5765,25 +6168,27 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
                 
                 .result-line {
                     border-bottom: 1px solid #000;
-                    height: 5mm;
+                    height: 4mm;
                 }
-                
+
                 @media print {
                     body {
-                        padding: 5mm;
+                        padding: 4mm !important;
                         background: white !important;
                         -webkit-print-color-adjust: exact;
                         color-adjust: exact;
                     }
-                    
+
                     .page {
                         margin: 0;
                         width: 100%;
+                        height: 277mm !important;
                     }
-                    
+
                     .match-sheet {
                         border: 1.5px solid #000 !important;
-                        margin-bottom: 3mm;
+                        margin-bottom: 0 !important;
+                        height: 65mm !important;
                     }
                     
                     .score-table th {
@@ -5822,6 +6227,9 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
                 <div class="page-header">
                     <div class="page-title">🏓 FEUILLES DE MATCH - JOURNÉE ${dayNumber}</div>
                     <div class="page-info">${currentDate} • Page ${pageIndex + 1}/${matchPages.length} • ${pageMatches.length} matchs</div>
+                    <div class="page-info" style="margin-top: 2mm; font-size: 8px; color: #999;">
+                        ✂️ Découpez selon les pointillés pour trier par tour
+                    </div>
                 </div>
         `;
         
@@ -5843,15 +6251,30 @@ function generateMatchSheetHTML(dayNumber, matchPages) {
 
 // Générer une feuille de match compacte
 function generateCompactMatchSheet(match) {
-    const divisionName = match.division === 1 ? 'D1🥇' : 
+    const divisionName = match.division === 1 ? 'D1🥇' :
                         match.division === 2 ? 'D2🥈' : 'D3🥉';
-    
-    const matchInfo = match.type === 'Poule' ? 
-        `${match.poolName}` : 
+
+    const matchInfo = match.type === 'Poule' ?
+        `${match.poolName}` :
         `Tour ${match.tour}`;
-    
+
+    // Ligne de séparation avec numéro de tour pour faciliter le découpage
+    const tourColors = {
+        1: '#e74c3c',  // Rouge
+        2: '#f39c12',  // Orange
+        3: '#27ae60',  // Vert
+        4: '#3498db'   // Bleu
+    };
+    const tourColor = tourColors[match.tour] || '#333';
+
+    const tourIndicator = match.tour ?
+        `<div style="background: ${tourColor}; color: white; text-align: center; padding: 1.5mm; margin: -2mm -2mm 1.5mm -2mm; font-weight: bold; font-size: 10px; border-bottom: 1px dashed #ccc; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            🎯 TOUR ${match.tour}
+        </div>` : '';
+
     return `
         <div class="match-sheet">
+            ${tourIndicator}
             <div class="match-header">
                 <div class="match-id">${match.matchId} • ${divisionName}</div>
                 <div>${match.type} • ${matchInfo}</div>
@@ -5934,7 +6357,11 @@ function openPrintWindow(htmlContent, filename) {
         const shouldPrint = printWindow.confirm(
             '📋 Feuilles de match générées avec succès !\n\n' +
             '🖨️ Voulez-vous ouvrir la boîte de dialogue d\'impression maintenant ?\n\n' +
-            '💡 Conseil : Utilisez le format A4 Portrait pour un résultat optimal.'
+            '💡 Organisation :\n' +
+            '   • Chaque page A4 contient 4 matchs (1 de chaque tour)\n' +
+            '   • Découpez selon les lignes pointillées ✂️\n' +
+            '   • Vous obtiendrez 4 tas déjà triés par tour !\n\n' +
+            '📄 Format recommandé : A4 Portrait'
         );
         
         if (shouldPrint) {

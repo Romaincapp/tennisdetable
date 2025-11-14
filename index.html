@@ -250,6 +250,56 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal d'édition de joueur -->
+    <div id="editPlayerModal" class="modal">
+        <div class="modal-content">
+            <h3>✏️ Modifier le joueur</h3>
+            <div style="margin: 20px 0;">
+                <label style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: bold;">
+                    Nom actuel : <span id="currentPlayerName" style="color: #3498db;"></span>
+                </label>
+                <label style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: bold;">
+                    Division : <span id="currentPlayerDivision" style="color: #3498db;"></span>
+                </label>
+                <label style="display: block; margin-top: 20px; margin-bottom: 8px; color: #2c3e50; font-weight: bold;">
+                    Nouveau nom :
+                </label>
+                <input type="text" id="newPlayerName" placeholder="Entrez le nouveau nom"
+                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;">
+            </div>
+            <div id="editPlayerInfo" style="margin: 15px 0; padding: 12px; background: #e8f4f8; border-left: 4px solid #3498db; border-radius: 4px; font-size: 13px;">
+                <!-- Info sur l'impact de la modification -->
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" onclick="closeEditPlayerModal()">Annuler</button>
+                <button class="btn btn-success" onclick="confirmEditPlayer()">Modifier</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmation de suppression -->
+    <div id="deletePlayerModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: #e74c3c;">⚠️ Confirmer la suppression</h3>
+            <div style="margin: 20px 0;">
+                <p style="font-size: 16px; color: #2c3e50; margin-bottom: 20px;">
+                    Êtes-vous sûr de vouloir supprimer <strong id="deletePlayerName" style="color: #e74c3c;"></strong> ?
+                </p>
+                <div id="deletePlayerStats" style="background: #fee; border-left: 4px solid #e74c3c; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                    <!-- Statistiques sur l'impact de la suppression -->
+                </div>
+                <p style="color: #7f8c8d; font-size: 13px; margin-top: 15px;">
+                    ⚠️ Cette action est irréversible et supprimera le joueur et tous ses matchs sur toutes les journées.
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeDeletePlayerModal()">Annuler</button>
+                <button class="btn btn-danger" onclick="confirmDeletePlayer()">Supprimer définitivement</button>
+            </div>
+        </div>
+    </div>
+
         <script src="script.js"></script>
 
     </body>
