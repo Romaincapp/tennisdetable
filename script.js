@@ -329,8 +329,11 @@ try {
         });
 
         if (nameExists) {
-            showNotification(`Un joueur nommé "${newName}" existe déjà dans la Division ${editPlayerData.division}`, 'error');
-            return;
+            // Demander confirmation à l'utilisateur
+            const confirmMsg = `Un joueur nommé "${newName}" existe déjà dans la Division ${editPlayerData.division}.\n\nEst-ce le même joueur (correction de faute de frappe) ?\n\nCliquez OK pour confirmer, ou Annuler pour abandonner.`;
+            if (!confirm(confirmMsg)) {
+                return;
+            }
         }
 
         // Effectuer la modification
