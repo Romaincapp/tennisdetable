@@ -1138,3 +1138,78 @@ body   * {
         transform: translateX(0);
     }
 }
+
+/* ================================================
+   SYSTÈME DE VERROUILLAGE DES JOURNÉES
+   ================================================ */
+
+/* Badge de verrouillage sur les onglets */
+.lock-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 14px;
+    vertical-align: middle;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+/* Inputs de score verrouillés */
+.score-input:disabled,
+.locked-input .score-input {
+    background-color: #f5f5f5 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+    border: 1px solid #ddd !important;
+}
+
+.locked-input {
+    position: relative;
+    opacity: 0.7;
+}
+
+.locked-input::after {
+    content: '🔒';
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
+    font-size: 12px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Set désactivé (style existant amélioré) */
+.set-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.set-disabled .score-input {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+}
+
+/* Notification pour journée verrouillée */
+.notification.locked-warning {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border-left: 4px solid #a93226;
+}
+
+/* Hover sur badge de verrouillage */
+.lock-badge:hover {
+    cursor: help;
+    transform: scale(1.2);
+    transition: transform 0.2s ease;
+}

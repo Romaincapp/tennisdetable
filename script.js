@@ -7,7 +7,8 @@ try {
         days: {
             1: {
                 players: { 1: [], 2: [], 3: [] },
-                matches: { 1: [], 2: [], 3: [] }
+                matches: { 1: [], 2: [], 3: [] },
+                locked: false
             }
         }
     };
@@ -106,6 +107,11 @@ try {
 
         if (!name || name === '') {
             showNotification('Veuillez entrer un nom de joueur', 'warning');
+            return;
+        }
+
+        // Vérifier si la journée est verrouillée
+        if (!checkLockAndConfirm(targetDay, 'Ajouter un joueur')) {
             return;
         }
 
@@ -226,8 +232,14 @@ try {
 
     function removePlayer(dayNumber, division, playerName) {
         console.log("removePlayer appelée");
+
+        // Vérifier si la journée est verrouillée
+        if (!checkLockAndConfirm(dayNumber, 'Supprimer un joueur')) {
+            return;
+        }
+
         championship.days[dayNumber].players[division] = championship.days[dayNumber].players[division].filter(p => p !== playerName);
-        championship.days[dayNumber].matches[division] = championship.days[dayNumber].matches[division].filter(match => 
+        championship.days[dayNumber].matches[division] = championship.days[dayNumber].matches[division].filter(match =>
             match.player1 !== playerName && match.player2 !== playerName
         );
         updatePlayersDisplay(dayNumber);
@@ -306,9 +318,14 @@ try {
         }
 
         // Vérifier si le nouveau nom existe déjà dans la même division
+        // Un conflit existe seulement si le nouveau nom existe dans une journée où l'ancien nom n'existe pas
         const nameExists = Object.keys(championship.days).some(day => {
             const dayNum = parseInt(day);
-            return championship.days[dayNum].players[editPlayerData.division].includes(newName);
+            const playersInDivision = championship.days[dayNum].players[editPlayerData.division];
+            const newNameExists = playersInDivision.includes(newName);
+            const oldNameExists = playersInDivision.includes(editPlayerData.playerName);
+            // Conflit uniquement si le nouveau nom existe ET l'ancien nom n'existe PAS (c'est un autre joueur)
+            return newNameExists && !oldNameExists;
         });
 
         if (nameExists) {
@@ -326,6 +343,26 @@ try {
 
     function editPlayerName(oldName, newName, division) {
         console.log(`Édition du joueur: ${oldName} -> ${newName} dans Division ${division}`);
+
+        // Si on n'est PAS sur le Hub Central, vérifier si des journées verrouillées seraient affectées
+        if (championship.currentDay !== 1) {
+            const lockedDaysAffected = Object.keys(championship.days).filter(day => {
+                const dayNum = parseInt(day);
+                return isDayLocked(dayNum) && championship.days[dayNum].players[division].includes(oldName);
+            });
+
+            if (lockedDaysAffected.length > 0) {
+                const confirmMsg = `🔒 MODIFICATION GLOBALE - JOURNÉES VERROUILLÉES AFFECTÉES\n\n` +
+                                  `Cette modification affectera ${lockedDaysAffected.length} journée(s) verrouillée(s).\n\n` +
+                                  `💡 Astuce : Depuis le Hub Central (Journée 1), vous pouvez éditer sans restrictions.\n\n` +
+                                  `Continuer quand même ?`;
+
+                if (!confirm(confirmMsg)) {
+                    showNotification('Modification annulée', 'info');
+                    return;
+                }
+            }
+        }
 
         let daysUpdated = 0;
         let matchesUpdated = 0;
@@ -486,19 +523,28 @@ try {
     function addNewDay() {
         const existingDays = Object.keys(championship.days).map(Number);
         const newDayNumber = Math.max(...existingDays) + 1;
-        
+
+        // Verrouiller toutes les journées précédentes (sauf Journée 1 - Hub Central)
+        existingDays.forEach(dayNum => {
+            if (dayNum !== 1) {
+                championship.days[dayNum].locked = true;
+            }
+        });
+
         championship.days[newDayNumber] = {
             players: { 1: [], 2: [], 3: [] },
-            matches: { 1: [], 2: [], 3: [] }
+            matches: { 1: [], 2: [], 3: [] },
+            locked: false
         };
-        
+
         createDayTab(newDayNumber);
         createDayContent(newDayNumber);
         updateDaySelectors();
         updateTabsDisplay();
         switchTab(newDayNumber);
+        updateDayTabsBadges(); // Mettre à jour les badges
         saveToLocalStorage();
-        
+
         showNotification(`Journée ${newDayNumber} créée !`, 'success');
     }
     window.addNewDay = addNewDay;
@@ -586,6 +632,9 @@ try {
                     <button class="btn btn-success" onclick="updateRankingsForDay(${dayNumber})">
                         🏆 Classements J${dayNumber}
                     </button>
+                    <button class="btn print-matches-btn" onclick="printMatchSheets(${dayNumber})" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white;" title="Imprimer les feuilles de match pour les arbitres">
+                        📋 Imprimer Matchs
+                    </button>
                     <button class="btn" onclick="showByeManagementModal(${dayNumber})" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
                         🎯 Gérer BYE
                     </button>
@@ -624,30 +673,139 @@ try {
             alert('⚠️ Impossible de supprimer la Journée 1 !\n\nLa Journée 1 est le Hub Central pour la gestion des joueurs.\nElle ne peut pas être supprimée.');
             return;
         }
-        
+
         if (Object.keys(championship.days).length <= 1) {
             alert('Vous ne pouvez pas supprimer la dernière journée !');
             return;
         }
-        
+
         if (confirm(`Supprimer définitivement la Journée ${dayNumber} ?\n\nTous les joueurs, matchs et scores seront perdus !`)) {
+            const allDays = Object.keys(championship.days).map(Number).sort((a, b) => a - b);
+            const maxDay = Math.max(...allDays);
+
+            // Si on supprime la dernière journée, déverrouiller la nouvelle dernière
+            if (dayNumber === maxDay && allDays.length > 1) {
+                const newLastDay = allDays[allDays.length - 2];
+                if (newLastDay !== 1) { // Sauf si c'est le Hub Central
+                    championship.days[newLastDay].locked = false;
+                }
+            }
+
             delete championship.days[dayNumber];
-            
+
             const tab = document.querySelector(`[data-day="${dayNumber}"]`);
             if (tab) tab.remove();
-            
+
             const dayContent = document.getElementById(`day-${dayNumber}`);
             if (dayContent) dayContent.remove();
-            
+
             const remainingDays = Object.keys(championship.days).map(Number);
             switchTab(Math.min(...remainingDays));
-            
+
             updateDaySelectors();
+            updateDayTabsBadges(); // Mettre à jour les badges
             saveToLocalStorage();
             showNotification(`Journée ${dayNumber} supprimée`, 'warning');
         }
     }
     window.removeDay = removeDay;
+
+    // SYSTÈME DE VERROUILLAGE DES JOURNÉES
+    function isDayLocked(dayNumber) {
+        // La Journée 1 (Hub Central) n'est JAMAIS verrouillée
+        if (dayNumber === 1) return false;
+
+        // Vérifier si la journée existe et est verrouillée
+        if (!championship.days[dayNumber]) return false;
+
+        return championship.days[dayNumber].locked === true;
+    }
+    window.isDayLocked = isDayLocked;
+
+    function attemptUnlockDay(dayNumber) {
+        if (dayNumber === 1) return true; // Hub Central toujours déverrouillé
+
+        const confirmMsg = `⚠️ JOURNÉE VERROUILLÉE\n\n` +
+                          `La Journée ${dayNumber} est verrouillée car ce n'est plus la journée active.\n\n` +
+                          `Voulez-vous la déverrouiller temporairement pour effectuer des corrections ?\n\n` +
+                          `⚠️ Note : Le verrouillage sera restauré au prochain rechargement.`;
+
+        if (confirm(confirmMsg)) {
+            championship.days[dayNumber].locked = false;
+            updateDayTabsBadges(); // Mettre à jour l'affichage des badges
+            saveToLocalStorage();
+            showNotification(`Journée ${dayNumber} déverrouillée temporairement`, 'info');
+            return true;
+        }
+
+        return false;
+    }
+    window.attemptUnlockDay = attemptUnlockDay;
+
+    function checkLockAndConfirm(dayNumber, actionName) {
+        if (!isDayLocked(dayNumber)) return true;
+
+        const confirmMsg = `🔒 MODIFICATION D'UNE ANCIENNE JOURNÉE\n\n` +
+                          `Attention : vous tentez de modifier la Journée ${dayNumber} qui est verrouillée.\n\n` +
+                          `Action : ${actionName}\n\n` +
+                          `Voulez-vous déverrouiller temporairement cette journée ?`;
+
+        if (confirm(confirmMsg)) {
+            championship.days[dayNumber].locked = false;
+            updateDayTabsBadges();
+            saveToLocalStorage();
+            showNotification(`Journée ${dayNumber} déverrouillée pour : ${actionName}`, 'warning');
+            return true;
+        }
+
+        showNotification('Action annulée - Journée verrouillée', 'error');
+        return false;
+    }
+    window.checkLockAndConfirm = checkLockAndConfirm;
+
+    function updateDayTabsBadges() {
+        const allDays = Object.keys(championship.days).map(Number);
+
+        allDays.forEach(dayNum => {
+            const tab = document.querySelector(`[data-day="${dayNum}"]`);
+            if (!tab) return;
+
+            // Retirer tous les badges existants
+            const existingBadge = tab.querySelector('.lock-badge');
+            if (existingBadge) existingBadge.remove();
+
+            // Ne pas ajouter de badge sur le Hub Central
+            if (dayNum === 1) return;
+
+            const isLocked = isDayLocked(dayNum);
+
+            if (isLocked || championship.days[dayNum].locked === false) {
+                const badge = document.createElement('span');
+                badge.className = 'lock-badge';
+
+                if (isLocked) {
+                    badge.innerHTML = '🔒';
+                    badge.title = 'Journée verrouillée - Cliquez pour modifier';
+                    badge.style.color = '#e74c3c';
+                } else {
+                    // Journée déverrouillée temporairement
+                    const allDays = Object.keys(championship.days).map(Number).sort((a, b) => a - b);
+                    const maxDay = Math.max(...allDays);
+
+                    if (dayNum !== maxDay && dayNum !== 1) {
+                        badge.innerHTML = '🔓';
+                        badge.title = 'Journée déverrouillée temporairement';
+                        badge.style.color = '#f39c12';
+                    }
+                }
+
+                if (badge.innerHTML) {
+                    tab.appendChild(badge);
+                }
+            }
+        });
+    }
+    window.updateDayTabsBadges = updateDayTabsBadges;
 
     function switchTab(dayNumber) {
         championship.currentDay = dayNumber;
@@ -744,7 +902,12 @@ try {
         if (!dayNumber) {
             dayNumber = championship.currentDay;
         }
-        
+
+        // Vérifier si la journée est verrouillée
+        if (!checkLockAndConfirm(dayNumber, 'Générer les matchs')) {
+            return;
+        }
+
         const dayData = championship.days[dayNumber];
         if (!dayData) return;
 
@@ -1000,7 +1163,11 @@ try {
                             let setClass = 'set';
                             let setDisabled = '';
 
-                            if (match.completed && setIndex === 2) {
+                            // Désactiver les inputs si la journée est verrouillée
+                            if (isDayLocked(dayNumber)) {
+                                setClass += ' set-disabled locked-input';
+                                setDisabled = 'disabled';
+                            } else if (match.completed && setIndex === 2) {
                                 let player1Sets = 0;
                                 let player2Sets = 0;
 
@@ -1111,8 +1278,15 @@ try {
     window.toggleTour = toggleTour;
 
     function updateSetScore(dayNumber, division, matchIndex, setIndex, scoreField, value) {
+        // Vérifier si la journée est verrouillée
+        if (isDayLocked(dayNumber)) {
+            if (!attemptUnlockDay(dayNumber)) {
+                return; // Action annulée
+            }
+        }
+
         championship.days[dayNumber].matches[division][matchIndex].sets[setIndex][scoreField] = value;
-        saveToLocalStorage(); 
+        saveToLocalStorage();
     }
     window.updateSetScore = updateSetScore;
 
@@ -2306,7 +2480,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 .container {
                     background: white;
                     border-radius: 15px;
-                    padding: 30px;
+                    padding: 20px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                     max-width: 1000px;
                     margin: 0 auto;
@@ -2314,7 +2488,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 
                 .header {
                     text-align: center;
-                    margin-bottom: 20px;
+                    margin-bottom: 10px;
                     padding: 20px;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
@@ -2357,7 +2531,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 .stats-section {
                     background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
                     padding: 20px;
-                    margin-bottom: 20px;
+                    margin-bottom: 10px;
                     border-radius: 12px;
                     border: 2px solid #f39c12;
                     position: relative;
@@ -2584,7 +2758,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                     
                     body {
                         background: white !important;
-                        padding: 15px;
+                        padding: 8px;
                         font-size: 11px;
                     }
                     
@@ -2601,7 +2775,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                         border-radius: 0 !important;
-                        margin-bottom: 25px;
+                        margin-bottom: 12px;
                     }
                     
                     .header::before {
@@ -2614,7 +2788,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                         border-radius: 0 !important;
-                        margin-bottom: 25px;
+                        margin-bottom: 12px;
                     }
                     
                     .stat-item {
@@ -2695,7 +2869,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 }
                 
                 @page {
-                    margin: 1.5cm;
+                    margin: 1cm;
                     size: A4 portrait;
                 }
             </style>
@@ -3040,7 +3214,8 @@ window.exportGeneralRankingToPDF = exportGeneralRankingToPDF;
                     days: {
                         1: {
                             players: { 1: [], 2: [], 3: [] },
-                            matches: { 1: [], 2: [], 3: [] }
+                            matches: { 1: [], 2: [], 3: [] },
+                            locked: false
                         }
                     }
                 };
@@ -3655,19 +3830,20 @@ window.exportGeneralRankingToHTML = exportGeneralRankingToHTML;
     // INITIALISATION AU CHARGEMENT
     document.addEventListener('DOMContentLoaded', function() {
         console.log("DOM chargé, début initialisation");
-        
+
         // Charger les données sauvegardées
         if (loadFromLocalStorage()) {
             updateTabsDisplay();
             updateDaySelectors();
             initializeAllDaysContent();
             switchTab(championship.currentDay);
+            updateDayTabsBadges(); // Afficher les badges de verrouillage
         } else {
             initializeDivisionsDisplay(1);
             updatePlayersDisplay(1);
             initializePoolsForDay(1);
         }
-        
+
         setupEventListeners();
         console.log("Initialisation terminée");
     });
