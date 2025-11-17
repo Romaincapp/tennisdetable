@@ -1070,3 +1070,71 @@ body   * {
                 padding-bottom: 10px;
             }
         }
+
+/* ========================================
+   STYLES PWA - MODAL D'INSTALLATION
+   ======================================== */
+
+.pwa-modal {
+    max-width: 500px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.pwa-modal h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Style spécifique pour le bouton d'installation */
+.pwa-modal .btn-success {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+    font-weight: 600;
+}
+
+.pwa-modal .btn-success:hover {
+    background: linear-gradient(135deg, #229954, #27ae60);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+}
+
+/* Animation pour les avantages PWA */
+.pwa-modal div[style*="background: #e8f4f8"] p {
+    animation: fadeIn 0.5s ease-in;
+    animation-fill-mode: both;
+}
+
+.pwa-modal div[style*="background: #e8f4f8"] p:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.pwa-modal div[style*="background: #e8f4f8"] p:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.pwa-modal div[style*="background: #e8f4f8"] p:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

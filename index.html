@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Championnat Tennis de Table</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Application de gestion de championnat de tennis de table">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tennis Table">
+
+    <!-- Liens PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
     <link rel="stylesheet"  href="styles.css">
 
 
@@ -296,6 +310,27 @@
             <div class="modal-buttons">
                 <button class="btn" onclick="closeDeletePlayerModal()">Annuler</button>
                 <button class="btn btn-danger" onclick="confirmDeletePlayer()">Supprimer définitivement</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'installation PWA -->
+    <div id="pwaInstallModal" class="modal">
+        <div class="modal-content pwa-modal">
+            <h3 style="color: #2c3e50; margin-bottom: 15px;">📱 Installer l'application</h3>
+            <div style="margin: 20px 0;">
+                <p style="font-size: 16px; color: #2c3e50; line-height: 1.6; margin-bottom: 15px;">
+                    Installez <strong>Championnat Tennis de Table</strong> sur votre appareil pour un accès rapide et une meilleure expérience !
+                </p>
+                <div style="background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                    <p style="margin: 5px 0; color: #2c3e50; font-size: 14px;">✓ Accès rapide depuis l'écran d'accueil</p>
+                    <p style="margin: 5px 0; color: #2c3e50; font-size: 14px;">✓ Fonctionne hors ligne</p>
+                    <p style="margin: 5px 0; color: #2c3e50; font-size: 14px;">✓ Expérience application native</p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closePwaInstallModal()">Plus tard</button>
+                <button class="btn btn-success" onclick="installPwa()">Installer maintenant</button>
             </div>
         </div>
     </div>

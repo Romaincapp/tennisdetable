@@ -6458,3 +6458,106 @@ if (document.readyState === 'loading') {
     console.error("❌ ERREUR DANS LE SCRIPT:", error);
     console.error("Stack trace:", error.stack);
 }
+
+// ========================================
+// GESTION PWA - SERVICE WORKER & INSTALLATION
+// ========================================
+
+let deferredPrompt = null;
+
+// Enregistrement du Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+                console.log('✅ Service Worker enregistré:', registration.scope);
+            })
+            .catch((error) => {
+                console.log('❌ Échec enregistrement Service Worker:', error);
+            });
+    });
+}
+
+// Capture de l'événement beforeinstallprompt
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Empêche le mini-infobar de Chrome sur mobile
+    e.preventDefault();
+    // Stocke l'événement pour l'utiliser plus tard
+    deferredPrompt = e;
+    console.log('✅ Événement beforeinstallprompt capturé');
+
+    // Vérifie si l'utilisateur a déjà refusé ou installé
+    const pwaPromptDismissed = localStorage.getItem('pwaPromptDismissed');
+    const pwaInstalled = localStorage.getItem('pwaInstalled');
+
+    // Si l'utilisateur n'a pas encore répondu, affiche la modal après 2 secondes
+    if (!pwaPromptDismissed && !pwaInstalled) {
+        setTimeout(() => {
+            showPwaInstallModal();
+        }, 2000);
+    }
+});
+
+// Fonction pour afficher la modal d'installation PWA
+function showPwaInstallModal() {
+    const modal = document.getElementById('pwaInstallModal');
+    if (modal && deferredPrompt) {
+        modal.style.display = 'block';
+    }
+}
+
+// Fonction pour fermer la modal PWA
+function closePwaInstallModal() {
+    const modal = document.getElementById('pwaInstallModal');
+    if (modal) {
+        modal.style.display = 'none';
+        // Stocke que l'utilisateur a fermé la modal
+        localStorage.setItem('pwaPromptDismissed', 'true');
+    }
+}
+
+// Fonction pour installer la PWA
+async function installPwa() {
+    if (!deferredPrompt) {
+        console.log('❌ Pas de prompt d\'installation disponible');
+        showNotification('Installation non disponible sur cet appareil', 'warning');
+        closePwaInstallModal();
+        return;
+    }
+
+    // Affiche le prompt d'installation natif
+    deferredPrompt.prompt();
+
+    // Attend la réponse de l'utilisateur
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+        console.log('✅ L\'utilisateur a accepté l\'installation');
+        localStorage.setItem('pwaInstalled', 'true');
+        showNotification('Application installée avec succès !', 'success');
+    } else {
+        console.log('❌ L\'utilisateur a refusé l\'installation');
+        localStorage.setItem('pwaPromptDismissed', 'true');
+    }
+
+    // Réinitialise le prompt
+    deferredPrompt = null;
+
+    // Ferme la modal
+    closePwaInstallModal();
+}
+
+// Détecte si l'app est déjà installée
+window.addEventListener('appinstalled', () => {
+    console.log('✅ PWA installée avec succès');
+    localStorage.setItem('pwaInstalled', 'true');
+    deferredPrompt = null;
+});
+
+// Ferme la modal si on clique en dehors
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('pwaInstallModal');
+    if (event.target === modal) {
+        closePwaInstallModal();
+    }
+});
