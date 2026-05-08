@@ -2351,50 +2351,70 @@ generalRanking.divisions[division].forEach((player, index) => {
         for (let division = 1; division <= 3; division++) {
             const playersData = {};
             
+            // Étape 1 : déterminer tous les joueurs inscrits dans cette division (union de toutes les journées)
+            const allPlayerNames = new Set();
+            Object.values(championship.days).forEach(day => {
+                if (day.players && day.players[division]) {
+                    day.players[division].forEach(name => {
+                        if (name && name.toUpperCase() !== 'BYE') {
+                            allPlayerNames.add(name);
+                        }
+                    });
+                }
+            });
+            
+            // Étape 2 : initialiser les données pour tous les joueurs inscrits
+            allPlayerNames.forEach(playerName => {
+                playersData[playerName] = {
+                    name: playerName,
+                    daysPlayed: 0,
+                    totalPoints: 0,
+                    totalWins: 0,
+                    totalLosses: 0,
+                    totalForfaits: 0,
+                    totalSetsWon: 0,
+                    totalSetsLost: 0,
+                    totalPointsWon: 0,
+                    totalPointsLost: 0,
+                    totalMatchesPlayed: 0,
+                    winRates: []
+                };
+            });
+            
+            // Étape 3 : parcourir toutes les journées pour chaque joueur
             Object.keys(championship.days).forEach(dayNumber => {
                 const dayNum = parseInt(dayNumber);
                 const dayData = championship.days[dayNum];
+                const playersInDay = (dayData.players && dayData.players[division]) || [];
                 
-                dayData.players[division].forEach(playerName => {
-                    if (playerName && playerName.toUpperCase() === 'BYE') return;
-                    if (!playersData[playerName]) {
-                        playersData[playerName] = {
-                            name: playerName,
-                            daysPlayed: 0,
-                            totalPoints: 0,
-                            totalWins: 0,
-                            totalLosses: 0,
-                            totalForfaits: 0,
-                            totalSetsWon: 0,
-                            totalSetsLost: 0,
-                            totalPointsWon: 0,
-                            totalPointsLost: 0,
-                            totalMatchesPlayed: 0,
-                            winRates: []
-                        };
-                    }
-                    
-                    const dayStats = calculatePlayerStats(dayNum, division, playerName);
-                    if (dayStats && dayStats.matchesPlayed > 0) {
-                        playersData[playerName].daysPlayed++;
-                        playersData[playerName].totalPoints += dayStats.totalPoints;
-                        playersData[playerName].totalWins += dayStats.wins;
-                        playersData[playerName].totalLosses += dayStats.losses;
-                        playersData[playerName].totalForfaits += dayStats.forfaits;
-                        playersData[playerName].totalSetsWon += dayStats.setsWon;
-                        playersData[playerName].totalSetsLost += dayStats.setsLost;
-                        playersData[playerName].totalPointsWon += dayStats.pointsWon;
-                        playersData[playerName].totalPointsLost += dayStats.pointsLost;
-                        playersData[playerName].totalMatchesPlayed += dayStats.matchesPlayed;
-                        playersData[playerName].winRates.push(dayStats.winRate);
+                allPlayerNames.forEach(playerName => {
+                    if (playersInDay.includes(playerName)) {
+                        // Joueur présent : calcul normal
+                        const dayStats = calculatePlayerStats(dayNum, division, playerName);
+                        if (dayStats && dayStats.matchesPlayed > 0) {
+                            playersData[playerName].daysPlayed++;
+                            playersData[playerName].totalPoints += dayStats.totalPoints;
+                            playersData[playerName].totalWins += dayStats.wins;
+                            playersData[playerName].totalLosses += dayStats.losses;
+                            playersData[playerName].totalForfaits += dayStats.forfaits;
+                            playersData[playerName].totalSetsWon += dayStats.setsWon;
+                            playersData[playerName].totalSetsLost += dayStats.setsLost;
+                            playersData[playerName].totalPointsWon += dayStats.pointsWon;
+                            playersData[playerName].totalPointsLost += dayStats.pointsLost;
+                            playersData[playerName].totalMatchesPlayed += dayStats.matchesPlayed;
+                            playersData[playerName].winRates.push(dayStats.winRate);
 
-                        generalRanking.hasData = true;
+                            generalRanking.hasData = true;
+                        }
+                    } else {
+                        // Joueur absent de cette journée : comptabilisé comme forfait
+                        playersData[playerName].totalForfaits++;
                     }
                 });
             });
             
             const playersArray = Object.values(playersData)
-                .filter(player => player.daysPlayed > 0)
+                .filter(player => player.daysPlayed > 0 || player.totalForfaits > 0)
                 .map(player => ({
                     ...player,
                     avgWinRate: player.winRates.length > 0 ?
