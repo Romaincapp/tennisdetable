@@ -98,6 +98,67 @@ try {
         return false;
     }
 
+    // FONCTIONS DE SIMILARITÉ (DÉTECTION DE DOUBLONS)
+    function normalizeForComparison(str) {
+        return str.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[-\s]+/g, ' ')
+            .trim();
+    }
+
+    function levenshteinDistance(a, b) {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
+            }
+        }
+        return matrix[b.length][a.length];
+    }
+
+    function calculateSimilarity(a, b) {
+        const normA = normalizeForComparison(a);
+        const normB = normalizeForComparison(b);
+        if (normA === normB) return 1.0;
+        const maxLen = Math.max(normA.length, normB.length);
+        if (maxLen === 0) return 1.0;
+        const dist = levenshteinDistance(normA, normB);
+        return 1 - dist / maxLen;
+    }
+
+    function findSimilarPlayers(threshold = 0.75) {
+        const results = { 1: [], 2: [], 3: [] };
+        for (let division = 1; division <= 3; division++) {
+            const allNames = new Set();
+            Object.values(championship.days).forEach(day => {
+                if (day.players && day.players[division]) {
+                    day.players[division].forEach(name => allNames.add(name));
+                }
+            });
+            const names = Array.from(allNames).sort();
+            for (let i = 0; i < names.length; i++) {
+                for (let j = i + 1; j < names.length; j++) {
+                    const similarity = calculateSimilarity(names[i], names[j]);
+                    if (similarity >= threshold) {
+                        results[division].push({ name1: names[i], name2: names[j], similarity });
+                    }
+                }
+            }
+            results[division].sort((a, b) => b.similarity - a.similarity);
+        }
+        return results;
+    }
+
     // FONCTIONS DE BASE
     function addPlayer() {
         console.log("addPlayer appelée");
@@ -373,6 +434,7 @@ try {
         // Parcourir toutes les journées
         Object.keys(championship.days).forEach(day => {
             const dayNum = parseInt(day);
+            const dayData = championship.days[dayNum];
 
             // Mettre à jour dans le tableau des joueurs
             const playerIndex = championship.days[dayNum].players[division].indexOf(oldName);
@@ -381,7 +443,7 @@ try {
                 daysUpdated++;
             }
 
-            // Mettre à jour dans tous les matchs
+            // Mettre à jour dans tous les matchs classiques
             championship.days[dayNum].matches[division].forEach(match => {
                 if (match.player1 === oldName) {
                     match.player1 = newName;
@@ -395,6 +457,49 @@ try {
                     match.winner = newName;
                 }
             });
+
+            // Mettre à jour dans les poules et phases finales
+            if (dayData.pools && dayData.pools.divisions) {
+                const poolDiv = dayData.pools.divisions[division];
+                if (poolDiv) {
+                    if (poolDiv.pools) {
+                        poolDiv.pools.forEach(pool => {
+                            for (let i = 0; i < pool.length; i++) {
+                                if (pool[i] === oldName) pool[i] = newName;
+                            }
+                        });
+                    }
+                    if (poolDiv.matches) {
+                        poolDiv.matches.forEach(match => {
+                            if (match.player1 === oldName) match.player1 = newName;
+                            if (match.player2 === oldName) match.player2 = newName;
+                            if (match.winner === oldName) match.winner = newName;
+                        });
+                    }
+                }
+            }
+            
+            if (dayData.pools && dayData.pools.manualFinalPhase && dayData.pools.manualFinalPhase.divisions) {
+                const finalDiv = dayData.pools.manualFinalPhase.divisions[division];
+                if (finalDiv) {
+                    if (finalDiv.qualified) {
+                        for (let i = 0; i < finalDiv.qualified.length; i++) {
+                            if (finalDiv.qualified[i] === oldName) finalDiv.qualified[i] = newName;
+                        }
+                    }
+                    if (finalDiv.rounds) {
+                        Object.values(finalDiv.rounds).forEach(round => {
+                            if (round.matches) {
+                                round.matches.forEach(match => {
+                                    if (match.player1 === oldName) match.player1 = newName;
+                                    if (match.player2 === oldName) match.player2 = newName;
+                                    if (match.winner === oldName) match.winner = newName;
+                                });
+                            }
+                        });
+                    }
+                }
+            }
         });
 
         // Sauvegarder et rafraîchir l'affichage
@@ -406,7 +511,10 @@ try {
             updatePlayersDisplay(dayNum);
             updateMatchesDisplay(dayNum);
             updateStats(dayNum);
+            if (typeof updatePoolsDisplay === 'function') updatePoolsDisplay(dayNum);
+            if (typeof updateManualFinalPhaseDisplay === 'function') updateManualFinalPhaseDisplay(dayNum);
         });
+        if (typeof updateGeneralRanking === 'function') updateGeneralRanking();
 
         showNotification(`${oldName} renommé en ${newName} (${daysUpdated} journée(s), ${matchesUpdated} match(s) mis à jour)`, 'success');
     }
@@ -1142,7 +1250,10 @@ try {
                                         <span class="match-collapse-arrow" id="match-arrow-${dayNumber}-${division}-${globalIndex}">${arrowIcon}</span>
                                         <div class="player-names">${match.player1} VS ${match.player2}</div>
                                     </div>
-                                    <div class="match-status ${statusClass}">${statusText}</div>
+                                    <div class="match-header-right">
+                                        <div class="match-status ${statusClass}" id="match-status-${dayNumber}-${division}-${globalIndex}">${statusText}</div>
+                                        <div class="match-header-result" id="match-header-result-${dayNumber}-${division}-${globalIndex}">${match.completed && match.winner ? `🏆 ${match.winner}` : ''}</div>
+                                    </div>
                                 </div>
                                 <div class="match-details" id="match-details-${dayNumber}-${division}-${globalIndex}">
                                 <div class="sets-container">
@@ -1170,27 +1281,6 @@ try {
                             if (isDayLocked(dayNumber)) {
                                 setClass += ' set-disabled locked-input';
                                 setDisabled = 'disabled';
-                            } else if (match.completed && setIndex === 2) {
-                                let player1Sets = 0;
-                                let player2Sets = 0;
-
-                                for (let i = 0; i < 2; i++) {
-                                    if (match.sets[i] && match.sets[i].player1Score !== '' && match.sets[i].player2Score !== '') {
-                                        const score1 = parseInt(match.sets[i].player1Score);
-                                        const score2 = parseInt(match.sets[i].player2Score);
-
-                                        if (score1 > score2) {
-                                            player1Sets++;
-                                        } else if (score2 > score1) {
-                                            player2Sets++;
-                                        }
-                                    }
-                                }
-
-                                if (player1Sets >= 2 || player2Sets >= 2) {
-                                    setClass += ' set-disabled';
-                                    setDisabled = 'disabled';
-                                }
                             }
 
                             html += `
@@ -1244,7 +1334,7 @@ try {
                         
                         html += `
                                 </div>
-                                <div class="match-result ${resultClass}">
+                                <div class="match-result ${resultClass}" id="match-result-${dayNumber}-${division}-${globalIndex}">
                                     ${resultText}
                                 </div>
                                 </div>
@@ -1288,7 +1378,10 @@ try {
             }
         }
 
-        championship.days[dayNumber].matches[division][matchIndex].sets[setIndex][scoreField] = value;
+        const cleanValue = value === null || value === undefined ? '' : String(value).trim();
+        championship.days[dayNumber].matches[division][matchIndex].sets[setIndex][scoreField] = cleanValue;
+        checkMatchCompletion(dayNumber, division, matchIndex);
+        updateSingleMatchDisplay(dayNumber, division, matchIndex);
         saveToLocalStorage();
     }
     window.updateSetScore = updateSetScore;
@@ -1334,9 +1427,12 @@ try {
         const match = championship.days[dayNumber].matches[division][matchIndex];
         const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
         
-        if (!matchElement) return;
+        if (!matchElement) {
+            console.warn(`updateSingleMatchDisplay: élément non trouvé pour d${dayNumber}-div${division}-m${matchIndex}`);
+            return;
+        }
         
-        const statusElement = matchElement.querySelector('.match-status');
+        const statusElement = document.getElementById(`match-status-${dayNumber}-${division}-${matchIndex}`);
         if (statusElement) {
             if (match.completed) {
                 statusElement.className = 'match-status status-completed';
@@ -1349,11 +1445,18 @@ try {
             }
         }
         
-        const resultElement = matchElement.querySelector('.match-result');
+        const arrowElement = document.getElementById(`match-arrow-${dayNumber}-${division}-${matchIndex}`);
+        if (arrowElement) {
+            arrowElement.textContent = matchElement.classList.contains('collapsed') ? '▶' : '▼';
+        }
+        
+        const headerResultElement = document.getElementById(`match-header-result-${dayNumber}-${division}-${matchIndex}`);
+        if (headerResultElement) {
+            headerResultElement.textContent = match.completed && match.winner ? `🏆 ${match.winner}` : '';
+        }
+        
+        const resultElement = document.getElementById(`match-result-${dayNumber}-${division}-${matchIndex}`);
         if (resultElement) {
-            let resultText = 'En attente des résultats';
-            let resultClass = 'result-pending';
-            
             if (match.completed && match.winner) {
                 let player1Sets = 0;
                 let player2Sets = 0;
@@ -1370,20 +1473,12 @@ try {
                 const winnerSets = match.winner === match.player1 ? player1Sets : player2Sets;
                 const loserSets = match.winner === match.player1 ? player2Sets : player1Sets;
                 
-                resultText = `🏆 ${match.winner} remporte le match (${winnerSets}-${loserSets})`;
-                resultClass = 'result-completed';
+                resultElement.className = 'match-result result-completed';
+                resultElement.textContent = `🏆 ${match.winner} remporte le match (${winnerSets}-${loserSets})`;
+            } else {
+                resultElement.className = 'match-result result-pending';
+                resultElement.textContent = 'En attente des résultats';
             }
-            
-            resultElement.className = `match-result ${resultClass}`;
-            resultElement.textContent = resultText;
-        }
-        
-        if (match.completed) {
-            const set3Inputs = matchElement.querySelectorAll('.set:nth-child(3) .score-input');
-            set3Inputs.forEach(input => {
-                input.disabled = true;
-                input.parentElement.parentElement.classList.add('set-disabled');
-            });
         }
         
         updateTourProgress(dayNumber, division, match.tour);
@@ -1415,10 +1510,12 @@ try {
                 const score1 = parseInt(set.player1Score);
                 const score2 = parseInt(set.player2Score);
                 
-                if (score1 > score2) {
-                    player1Sets++;
-                } else if (score2 > score1) {
-                    player2Sets++;
+                if (!isNaN(score1) && !isNaN(score2)) {
+                    if (score1 > score2) {
+                        player1Sets++;
+                    } else if (score2 > score1) {
+                        player2Sets++;
+                    }
                 }
             }
         });
@@ -1718,6 +1815,7 @@ try {
         
         let wins = 0;
         let losses = 0;
+        let forfaits = 0;
         let setsWon = 0;
         let setsLost = 0;
         let pointsWon = 0;
@@ -1732,7 +1830,11 @@ try {
                 const isPlayer1 = match.player1 === playerName;
                 
                 if (match.winner === playerName) {
-                    wins++;
+                    if (match.isBye) {
+                        forfaits++;
+                    } else {
+                        wins++;
+                    }
                 } else {
                     losses++;
                 }
@@ -1759,12 +1861,13 @@ try {
         });
         
         const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
-        const totalPoints = wins * 3 + losses * 1;
+        const totalPoints = wins * 3 + losses * 1 + forfaits * 3;
         
         return {
             matchesPlayed,
             wins,
             losses,
+            forfaits,
             setsWon,
             setsLost,
             setsDiff: setsWon - setsLost,
@@ -1995,13 +2098,15 @@ try {
         for (let division = 1; division <= 3; division++) {
             if (dayData.players[division].length === 0) continue;
             
-           const playerStats = dayData.players[division].map(player => {
-    const stats = calculatePlayerStats(dayNumber, division, player);
-    return {
-        name: player,
-        ...stats
-    };
-});
+           const playerStats = dayData.players[division]
+    .filter(player => player && player.toUpperCase() !== 'BYE')
+    .map(player => {
+        const stats = calculatePlayerStats(dayNumber, division, player);
+        return {
+            name: player,
+            ...stats
+        };
+    });
 
 if (sortBy === 'points') {
     // Tri standard tennis de table par points
@@ -2139,6 +2244,16 @@ if (sortBy === 'points') {
             return;
         }
         
+        // Détection des doublons potentiels pour mise en évidence
+        const similarPlayers = findSimilarPlayers();
+        const duplicateNames = new Set();
+        for (let d = 1; d <= 3; d++) {
+            similarPlayers[d].forEach(p => {
+                duplicateNames.add(p.name1);
+                duplicateNames.add(p.name2);
+            });
+        }
+        
         let rankingHtml = '';
         
         for (let division = 1; division <= 3; division++) {
@@ -2156,7 +2271,7 @@ if (sortBy === 'points') {
                     <th>Joueur</th>
                     <th>Points Total</th>
                     <th>Journées</th>
-                    <th>V/D Global</th>
+                    <th>V/D/F</th>
                     <th>% Vict. Moy.</th>
                     <th>Sets (G/P)</th>
                     <th>GA Sets</th>
@@ -2172,14 +2287,17 @@ generalRanking.divisions[division].forEach((player, index) => {
                       player.totalSetsDiff < 0 ? 'color: #e74c3c; font-weight: bold;' : '';
     const gaPointStyle = player.totalPointsDiff > 0 ? 'color: #27ae60;' :
                         player.totalPointsDiff < 0 ? 'color: #e74c3c;' : '';
+    const isDuplicate = duplicateNames.has(player.name);
+    const duplicateStyle = isDuplicate ? 'background-color: #fff3cd; color: #856404;' : '';
+    const duplicateTitle = isDuplicate ? 'Doublon potentiel détecté (voir Vérifier les joueurs)' : '';
 
     rankingHtml += `
-        <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name}', ${division})">
+        <tr style="cursor: pointer;" onclick="showGeneralPlayerDetails('${player.name.replace(/'/g, "\\'")}', ${division})">
             <td class="rank-position ${rankClass}">${index + 1}</td>
-            <td style="font-weight: 600;">${player.name}</td>
+            <td style="font-weight: 600; ${duplicateStyle}" title="${duplicateTitle}">${player.name}</td>
             <td class="stat-value">${player.totalPoints}</td>
             <td>${player.daysPlayed}</td>
-            <td>${player.totalWins}/${player.totalLosses}</td>
+            <td>${player.totalWins}/${player.totalLosses}/${player.totalForfaits}</td>
             <td>${player.avgWinRate}%</td>
             <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
             <td style="${gaSetStyle}">${player.totalSetsDiff > 0 ? '+' : ''}${player.totalSetsDiff}</td>
@@ -2208,7 +2326,7 @@ generalRanking.divisions[division].forEach((player, index) => {
         
         Object.values(championship.days).forEach(day => {
             Object.values(day.players).forEach(divPlayers => {
-                divPlayers.forEach(player => totalPlayers.add(player));
+                divPlayers.filter(p => p && p.toUpperCase() !== 'BYE').forEach(player => totalPlayers.add(player));
             });
             Object.values(day.matches).forEach(divMatches => {
                 totalMatches += divMatches.length;
@@ -2238,6 +2356,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                 const dayData = championship.days[dayNum];
                 
                 dayData.players[division].forEach(playerName => {
+                    if (playerName && playerName.toUpperCase() === 'BYE') return;
                     if (!playersData[playerName]) {
                         playersData[playerName] = {
                             name: playerName,
@@ -2245,6 +2364,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                             totalPoints: 0,
                             totalWins: 0,
                             totalLosses: 0,
+                            totalForfaits: 0,
                             totalSetsWon: 0,
                             totalSetsLost: 0,
                             totalPointsWon: 0,
@@ -2260,6 +2380,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                         playersData[playerName].totalPoints += dayStats.totalPoints;
                         playersData[playerName].totalWins += dayStats.wins;
                         playersData[playerName].totalLosses += dayStats.losses;
+                        playersData[playerName].totalForfaits += dayStats.forfaits;
                         playersData[playerName].totalSetsWon += dayStats.setsWon;
                         playersData[playerName].totalSetsLost += dayStats.setsLost;
                         playersData[playerName].totalPointsWon += dayStats.pointsWon;
@@ -2321,6 +2442,7 @@ generalRanking.divisions[division].forEach((player, index) => {
             totalPoints: acc.totalPoints + day.totalPoints,
             totalWins: acc.totalWins + day.wins,
             totalLosses: acc.totalLosses + day.losses,
+            totalForfaits: acc.totalForfaits + day.forfaits,
             totalSetsWon: acc.totalSetsWon + day.setsWon,
             totalSetsLost: acc.totalSetsLost + day.setsLost,
             totalMatchesPlayed: acc.totalMatchesPlayed + day.matchesPlayed
@@ -2328,6 +2450,7 @@ generalRanking.divisions[division].forEach((player, index) => {
             totalPoints: 0,
             totalWins: 0,
             totalLosses: 0,
+            totalForfaits: 0,
             totalSetsWon: 0,
             totalSetsLost: 0,
             totalMatchesPlayed: 0
@@ -2353,8 +2476,8 @@ generalRanking.divisions[division].forEach((player, index) => {
                     <div class="overview-label">Points total</div>
                 </div>
                 <div class="overview-card">
-                    <div class="overview-number">${totals.totalWins}/${totals.totalLosses}</div>
-                    <div class="overview-label">V/D Global</div>
+                    <div class="overview-number">${totals.totalWins}/${totals.totalLosses}/${totals.totalForfaits}</div>
+                    <div class="overview-label">V/D/F Global</div>
                 </div>
                 <div class="overview-card">
                     <div class="overview-number">${avgWinRate}%</div>
@@ -2380,7 +2503,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                     <div>
                         <div class="history-opponent">Journée ${dayStats.day}</div>
                         <div style="font-size: 12px; color: #7f8c8d;">
-                            ${dayStats.wins}V/${dayStats.losses}D - ${dayStats.matchesPlayed} matchs
+                            ${dayStats.wins}V/${dayStats.losses}D/${dayStats.forfaits}F - ${dayStats.matchesPlayed} matchs
                         </div>
                     </div>
                     <div class="history-score">
@@ -2932,7 +3055,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                             <th>Joueur</th>
                             <th>Points</th>
                             <th>Journées</th>
-                            <th>V/D</th>
+                            <th>V/D/F</th>
                             <th>% Vict.</th>
                             <th>Sets G/P</th>
                         </tr>
@@ -2952,7 +3075,7 @@ generalRanking.divisions[division].forEach((player, index) => {
                     <td class="player-name">${player.name}</td>
                     <td class="points-total">${player.totalPoints}</td>
                     <td style="text-align: center;">${player.daysPlayed}</td>
-                    <td style="text-align: center;">${player.totalWins}/${player.totalLosses}</td>
+                    <td style="text-align: center;">${player.totalWins}/${player.totalLosses}/${player.totalForfaits}</td>
                     <td style="text-align: center;">${player.avgWinRate}%</td>
                     <td style="text-align: center;">${player.totalSetsWon}/${player.totalSetsLost}</td>
                 </tr>
@@ -2970,7 +3093,7 @@ generalRanking.divisions[division].forEach((player, index) => {
     htmlContent += `
             <div class="footer">
                 <p>Championnat Tennis de Table - Gestion Esenca Sport</p>
-                <p>Système de points: Victoire = 3pts, Défaite = 1pt</p>
+                <p>Système de points: Victoire = 3pts, Défaite = 1pt, Forfait = 3pts</p>
                 <p>Document généré automatiquement le ${currentDate}</p>
             </div>
         </div>
@@ -3767,7 +3890,7 @@ function exportGeneralRankingToHTML() {
                             <th>Joueur</th>
                             <th>Points</th>
                             <th>Journées</th>
-                            <th>V/D</th>
+                            <th>V/D/F</th>
                             <th>% Vict.</th>
                             <th>Sets</th>
                         </tr>
@@ -3783,7 +3906,7 @@ function exportGeneralRankingToHTML() {
                     <td>${player.name}</td>
                     <td>${player.totalPoints}</td>
                     <td>${player.daysPlayed}</td>
-                    <td>${player.totalWins}/${player.totalLosses}</td>
+                    <td>${player.totalWins}/${player.totalLosses}/${player.totalForfaits}</td>
                     <td>${player.avgWinRate}%</td>
                     <td>${player.totalSetsWon}/${player.totalSetsLost}</td>
                 </tr>
@@ -3801,7 +3924,7 @@ function exportGeneralRankingToHTML() {
     htmlContent += `
                 <div class="footer">
                     <p>Championnat Tennis de Table - Gestion Esenca Sport</p>
-                    <p>Système de points: Victoire = 3pts, Défaite = 1pt</p>
+                    <p>Système de points: Victoire = 3pts, Défaite = 1pt, Forfait = 3pts</p>
                 </div>
             </div>
         </body>
@@ -4310,6 +4433,7 @@ function updatePoolMatchScore(dayNumber, matchId, setIndex, scoreField, value) {
         if (match) {
             match.sets[setIndex][scoreField] = value;
             checkPoolMatchCompletion(dayNumber, matchId);
+            updatePoolsDisplay(dayNumber);
             saveToLocalStorage();
             break;
         }
@@ -5205,6 +5329,7 @@ function updateManualMatchScore(matchId, setIndex, scoreField, value, dayNumber)
                 checkRoundCompletion(dayNumber, division, roundName);
                 
                 saveToLocalStorage();
+                updateManualFinalPhaseDisplay(dayNumber);
                 break;
             }
         }
@@ -6630,6 +6755,81 @@ if (document.readyState === 'loading') {
     console.log('✅ DOM déjà chargé - Ajout immédiat des boutons...');
     setTimeout(addPrintMatchesButton, 500);
 }
+    // MODAL DE VÉRIFICATION DES DOUBLONS
+    function showDuplicatePlayersModal() {
+        const similar = findSimilarPlayers();
+        const content = document.getElementById('duplicatePlayersContent');
+        let html = '';
+        let hasDuplicates = false;
+        
+        for (let division = 1; division <= 3; division++) {
+            const divSimilar = similar[division];
+            if (divSimilar.length === 0) continue;
+            hasDuplicates = true;
+            
+            html += `<div style="margin-bottom: 25px;">
+                <h4 style="color: #e67e22; margin-bottom: 15px;">Division ${division}</h4>
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>Joueur A</th>
+                            <th>Joueur B</th>
+                            <th>Similarité</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
+            divSimilar.forEach(pair => {
+                const simPercent = Math.round(pair.similarity * 100);
+                const color = simPercent >= 90 ? '#e74c3c' : simPercent >= 80 ? '#f39c12' : '#f1c40f';
+                const escName1 = pair.name1.replace(/'/g, "\\'");
+                const escName2 = pair.name2.replace(/'/g, "\\'");
+                html += `
+                    <tr>
+                        <td style="font-weight: 600;">${pair.name1}</td>
+                        <td style="font-weight: 600;">${pair.name2}</td>
+                        <td><span style="color: ${color}; font-weight: bold;">${simPercent}%</span></td>
+                        <td>
+                            <button class="btn" style="padding: 6px 12px; font-size: 12px; margin-right: 5px; background: linear-gradient(135deg, #3498db, #2980b9);" 
+                                onclick="harmonizePlayerName('${escName1}', '${escName2}', ${division})">
+                                Utiliser "${pair.name2}"
+                            </button>
+                            <button class="btn" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #9b59b6, #8e44ad);" 
+                                onclick="harmonizePlayerName('${escName2}', '${escName1}', ${division})">
+                                Utiliser "${pair.name1}"
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+            
+            html += `</tbody></table></div>`;
+        }
+        
+        if (!hasDuplicates) {
+            html = `<div class="empty-state">✅ Aucun doublon potentiel détecté entre les joueurs.</div>`;
+        }
+        
+        content.innerHTML = html;
+        document.getElementById('duplicatePlayersModal').style.display = 'flex';
+    }
+    window.showDuplicatePlayersModal = showDuplicatePlayersModal;
+
+    function closeDuplicatePlayersModal() {
+        document.getElementById('duplicatePlayersModal').style.display = 'none';
+    }
+    window.closeDuplicatePlayersModal = closeDuplicatePlayersModal;
+
+    function harmonizePlayerName(oldName, newName, division) {
+        if (oldName === newName) return;
+        if (!confirm(`Harmoniser "${oldName}" en "${newName}" dans toutes les journées et tous les matchs de la Division ${division} ?`)) {
+            return;
+        }
+        editPlayerName(oldName, newName, division);
+        showDuplicatePlayersModal(); // Rafraîchir la modal
+    }
+    window.harmonizePlayerName = harmonizePlayerName;
+
     console.log("=== SCRIPT CHARGÉ AVEC SUCCÈS ===");
     
 } catch (error) {

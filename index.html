@@ -196,6 +196,9 @@
                         <button class="btn btn-warning" onclick="updateGeneralRanking()">
                             🔄 Mettre à jour Classement Général
                         </button>
+                        <button class="btn" onclick="showDuplicatePlayersModal()" style="background: linear-gradient(135deg, #f39c12, #e67e22);">
+                            🔍 Vérifier les joueurs
+                        </button>
                          <button class="btn btn-success" onclick="exportGeneralRanking()">
                             📊 Exporter JSON
                         </button>
@@ -334,6 +337,22 @@
             <div class="modal-buttons">
                 <button class="btn" onclick="closePwaInstallModal()">Plus tard</button>
                 <button class="btn btn-success" onclick="installPwa()">Installer maintenant</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de vérification des doublons -->
+    <div id="duplicatePlayersModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; max-height: 85vh; overflow-y: auto;">
+            <h3 style="color: #e67e22; margin-bottom: 20px;">🔍 Vérification des doublons potentiels</h3>
+            <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">
+                Les joueurs ci-dessous ont des noms très similaires. Choisissez le nom à conserver pour harmoniser toutes les journées.
+            </p>
+            <div id="duplicatePlayersContent">
+                <!-- Contenu généré dynamiquement -->
+            </div>
+            <div class="modal-buttons" style="margin-top: 25px;">
+                <button class="btn btn-secondary" onclick="closeDuplicatePlayersModal()">Fermer</button>
             </div>
         </div>
     </div>
