@@ -571,7 +571,25 @@ body   * {
             color: #2c3e50;
             font-size: 14px;
         }
-        
+
+        .player-name-edit-input {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            padding: 2px 6px;
+            border: 2px solid #f39c12;
+            border-radius: 4px;
+            background: #fffdf5;
+            width: 130px;
+            max-width: 40%;
+        }
+
+        .player-name-edit-input:focus {
+            outline: none;
+            border-color: #e67e22;
+            box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.25);
+        }
+
         .match-status {
             font-size: 11px;
             padding: 3px 8px;

@@ -749,6 +749,9 @@ try {
                     <button class="btn" onclick="showByeManagementModal(${dayNumber})" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
                         🎯 Gérer BYE
                     </button>
+                    <button class="btn" id="edit-names-btn-${dayNumber}" onclick="togglePlayerNameEdit(${dayNumber})" style="background: linear-gradient(135deg, #f39c12, #e67e22);">
+                        ✏️ Éditer noms
+                    </button>
                     <button class="btn" onclick="copyPlayersFromPreviousDay(${dayNumber})">
                         👥 Copier joueurs J${dayNumber-1}
                     </button>
@@ -1248,7 +1251,7 @@ try {
                                 <div class="match-header" onclick="toggleMatch(${dayNumber}, ${division}, ${globalIndex})">
                                     <div class="match-header-left">
                                         <span class="match-collapse-arrow" id="match-arrow-${dayNumber}-${division}-${globalIndex}">${arrowIcon}</span>
-                                        <div class="player-names">${match.player1} VS ${match.player2}</div>
+                                        <div class="player-names" data-division="${division}"><span class="editable-player-name" data-original-name="${match.player1}">${match.player1}</span><span class="vs-separator"> VS </span><span class="editable-player-name" data-original-name="${match.player2}">${match.player2}</span></div>
                                     </div>
                                     <div class="match-header-right">
                                         <div class="match-status ${statusClass}" id="match-status-${dayNumber}-${division}-${globalIndex}">${statusText}</div>
@@ -1803,6 +1806,87 @@ try {
         }
     }
     window.toggleMatch = toggleMatch;
+
+    // ÉDITION DES NOMS DE JOUEURS DIRECTEMENT DANS LES MATCHS
+    const playerNameEditMode = {};
+
+    function togglePlayerNameEdit(dayNumber) {
+        const dayContent = document.getElementById(`day-${dayNumber}`);
+        if (!dayContent) return;
+
+        const btn = document.getElementById(`edit-names-btn-${dayNumber}`);
+        const isEntering = !playerNameEditMode[dayNumber];
+        playerNameEditMode[dayNumber] = isEntering;
+
+        if (isEntering) {
+            // Activer le mode édition : transformer les noms en champs texte
+            if (btn) {
+                btn.innerHTML = '💾 Terminer édition';
+                btn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+            }
+
+            const spans = dayContent.querySelectorAll('.editable-player-name');
+            spans.forEach(span => {
+                const name = span.dataset.originalName || '';
+                // Ne pas rendre éditable un BYE
+                if (name.toUpperCase() === 'BYE') return;
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'player-name-edit-input';
+                input.value = name;
+                input.dataset.originalName = name;
+                // Empêcher le clic d'ouvrir/fermer le match
+                input.addEventListener('click', e => e.stopPropagation());
+                input.addEventListener('keydown', e => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') input.blur();
+                });
+                span.replaceWith(input);
+            });
+
+            showNotification('Mode édition activé : modifiez les noms puis cliquez sur « Terminer édition »', 'info');
+        } else {
+            // Désactiver le mode édition : appliquer les renommages
+            if (btn) {
+                btn.innerHTML = '✏️ Éditer noms';
+                btn.style.background = 'linear-gradient(135deg, #f39c12, #e67e22)';
+            }
+
+            const inputs = dayContent.querySelectorAll('.player-name-edit-input');
+            const renames = [];
+            const seen = new Set();
+
+            inputs.forEach(input => {
+                const oldName = input.dataset.originalName || '';
+                const newName = input.value.trim();
+                if (!newName || newName === oldName) return;
+
+                // Déterminer la division à partir de l'id du match parent
+                const matchEl = input.closest('.match');
+                let division = null;
+                if (matchEl && matchEl.dataset.matchId) {
+                    const m = matchEl.dataset.matchId.match(/div(\d+)/);
+                    if (m) division = parseInt(m[1]);
+                }
+                if (division === null) return;
+
+                const key = `${division}|${oldName}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                renames.push({ oldName, newName, division });
+            });
+
+            if (renames.length > 0) {
+                // editPlayerName rafraîchit déjà tous les affichages
+                renames.forEach(r => editPlayerName(r.oldName, r.newName, r.division));
+            } else {
+                // Aucun changement : restaurer l'affichage normal
+                updateMatchesDisplay(dayNumber);
+            }
+        }
+    }
+    window.togglePlayerNameEdit = togglePlayerNameEdit;
 
     // STATISTIQUES ET CLASSEMENTS
     function calculatePlayerStats(dayNumber, division, playerName) {
