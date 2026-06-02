@@ -12,6 +12,7 @@ Application web de gestion de championnats de tennis de table multi-journées av
 ### Gestion des Joueurs
 - Ajout individuel ou en masse (import Excel/CSV, copier-coller)
 - Modification globale des noms (mise à jour automatique dans tous les matchs)
+- **Édition rapide des noms directement dans les matchs** : le bouton « ✏️ Éditer noms » bascule les noms affichés dans les matchs en champs texte éditables ; ils restent éditables jusqu'à ce que l'on clique à nouveau sur le bouton, ce qui applique les renommages partout
 - Suppression avec analyse d'impact
 - Historique et statistiques détaillées par joueur
 
