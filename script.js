@@ -324,6 +324,7 @@ try {
         // Calculer l'impact de la modification
         let totalDays = 0;
         let totalMatches = 0;
+        let matchesInCurrentDay = 0;
 
         Object.keys(championship.days).forEach(day => {
             const dayNum = parseInt(day);
@@ -333,13 +334,22 @@ try {
                     match.player1 === playerName || match.player2 === playerName
                 ).length;
                 totalMatches += matchesInDay;
+                if (dayNum === dayNumber) matchesInCurrentDay = matchesInDay;
             }
         });
 
+        // Libellés des deux options de portée
+        document.getElementById('editScopeDayLabel').textContent =
+            `Journée ${dayNumber} · ${matchesInCurrentDay} match(s)`;
+        document.getElementById('editScopeAllLabel').textContent =
+            `${totalDays} journée(s) · ${totalMatches} match(s)`;
+
+        // Sélectionner par défaut "cette journée uniquement"
+        const dayRadio = document.querySelector('input[name="editPlayerScope"][value="day"]');
+        if (dayRadio) dayRadio.checked = true;
+
         document.getElementById('editPlayerInfo').innerHTML =
-            `<strong>📊 Impact de la modification :</strong><br>
-            • Présent dans <strong>${totalDays}</strong> journée(s)<br>
-            • <strong>${totalMatches}</strong> match(s) seront mis à jour`;
+            `<strong>💡 Astuce :</strong> choisissez « Cette journée uniquement » pour corriger un nom sans toucher aux autres journées, ou « Toutes les journées » pour propager partout.`;
 
         document.getElementById('editPlayerModal').style.display = 'flex';
 
@@ -378,10 +388,18 @@ try {
             return;
         }
 
+        // Portée de la modification : "day" (cette journée) ou "all" (toutes)
+        const scopeRadio = document.querySelector('input[name="editPlayerScope"]:checked');
+        const scope = scopeRadio ? scopeRadio.value : 'day';
+
         // Vérifier si le nouveau nom existe déjà dans la même division
         // Un conflit existe seulement si le nouveau nom existe dans une journée où l'ancien nom n'existe pas
-        const nameExists = Object.keys(championship.days).some(day => {
-            const dayNum = parseInt(day);
+        // Pour la portée "cette journée", on ne vérifie que la journée concernée
+        const daysToCheck = scope === 'day'
+            ? [editPlayerData.dayNumber]
+            : Object.keys(championship.days).map(d => parseInt(d));
+
+        const nameExists = daysToCheck.some(dayNum => {
             const playersInDivision = championship.days[dayNum].players[editPlayerData.division];
             const newNameExists = playersInDivision.includes(newName);
             const oldNameExists = playersInDivision.includes(editPlayerData.playerName);
@@ -397,8 +415,31 @@ try {
             }
         }
 
-        // Effectuer la modification
-        editPlayerName(editPlayerData.playerName, newName, editPlayerData.division);
+        // Effectuer la modification selon la portée choisie
+        if (scope === 'all') {
+            // Renommage global : editPlayerName sauvegarde et rafraîchit déjà tout
+            editPlayerName(editPlayerData.playerName, newName, editPlayerData.division);
+        } else {
+            // Renommage limité à la journée concernée
+            const dayNumber = editPlayerData.dayNumber;
+            const matchesUpdated = editPlayerNameInDay(
+                editPlayerData.playerName, newName, editPlayerData.division, dayNumber
+            );
+
+            saveToLocalStorage();
+
+            updatePlayersDisplay(dayNumber);
+            updateMatchesDisplay(dayNumber);
+            updateStats(dayNumber);
+            if (typeof updatePoolsDisplay === 'function') updatePoolsDisplay(dayNumber);
+            if (typeof updateManualFinalPhaseDisplay === 'function') updateManualFinalPhaseDisplay(dayNumber);
+            if (typeof updateGeneralRanking === 'function') updateGeneralRanking();
+
+            showNotification(
+                `${editPlayerData.playerName} renommé en ${newName} dans la Journée ${dayNumber} uniquement (${matchesUpdated} match(s))`,
+                'success'
+            );
+        }
 
         // Fermer le modal
         closeEditPlayerModal();
