@@ -291,6 +291,19 @@
                 <input type="text" id="newPlayerName" placeholder="Entrez le nouveau nom"
                        style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;">
             </div>
+            <div style="margin: 18px 0;">
+                <label style="display: block; margin-bottom: 10px; color: #2c3e50; font-weight: bold;">
+                    Appliquer la modification à :
+                </label>
+                <label style="display: block; margin-bottom: 8px; cursor: pointer; padding: 8px 10px; border: 2px solid #ddd; border-radius: 6px;">
+                    <input type="radio" name="editPlayerScope" value="day" checked style="margin-right: 8px;">
+                    <strong>Cette journée uniquement</strong> (<span id="editScopeDayLabel"></span>)
+                </label>
+                <label style="display: block; cursor: pointer; padding: 8px 10px; border: 2px solid #ddd; border-radius: 6px;">
+                    <input type="radio" name="editPlayerScope" value="all" style="margin-right: 8px;">
+                    <strong>Toutes les journées</strong> (<span id="editScopeAllLabel"></span>)
+                </label>
+            </div>
             <div id="editPlayerInfo" style="margin: 15px 0; padding: 12px; background: #e8f4f8; border-left: 4px solid #3498db; border-radius: 4px; font-size: 13px;">
                 <!-- Info sur l'impact de la modification -->
             </div>
