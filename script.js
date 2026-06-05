@@ -2060,25 +2060,24 @@ try {
         let wins = 0;
         let losses = 0;
         let forfaits = 0;
+        let byes = 0;
         let setsWon = 0;
         let setsLost = 0;
         let pointsWon = 0;
         let pointsLost = 0;
         let matchesPlayed = 0;
-        
+
         playerMatches.forEach(match => {
             checkMatchCompletion(dayNumber, division, dayData.matches[division].indexOf(match));
-            
+
             if (match.completed) {
                 matchesPlayed++;
                 const isPlayer1 = match.player1 === playerName;
-                
+
                 if (match.winner === playerName) {
-                    if (match.isBye) {
-                        forfaits++;
-                    } else {
-                        wins++;
-                    }
+                    // Un match BYE compte comme une victoire à part entière
+                    wins++;
+                    if (match.isBye) byes++;
                 } else {
                     losses++;
                 }
@@ -2105,13 +2104,15 @@ try {
         });
         
         const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
-        const totalPoints = wins * 3 + losses * 1 + forfaits * 3;
-        
+        // Les BYE sont déjà inclus dans "wins" (3 points par victoire)
+        const totalPoints = wins * 3 + losses * 1;
+
         return {
             matchesPlayed,
             wins,
             losses,
             forfaits,
+            byes,
             setsWon,
             setsLost,
             setsDiff: setsWon - setsLost,
