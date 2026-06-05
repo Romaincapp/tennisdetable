@@ -520,6 +520,87 @@ try {
     }
     window.editPlayerName = editPlayerName;
 
+    // RENOMMAGE D'UN JOUEUR DANS UNE SEULE JOURNÉE (sans impacter les autres journées)
+    function editPlayerNameInDay(oldName, newName, division, dayNumber) {
+        console.log(`Édition du joueur (journée ${dayNumber} uniquement): ${oldName} -> ${newName} dans Division ${division}`);
+
+        const dayData = championship.days[dayNumber];
+        if (!dayData) return 0;
+
+        let matchesUpdated = 0;
+
+        // Mettre à jour dans le tableau des joueurs de la journée
+        if (dayData.players && dayData.players[division]) {
+            const playerIndex = dayData.players[division].indexOf(oldName);
+            if (playerIndex !== -1) {
+                dayData.players[division][playerIndex] = newName;
+            }
+        }
+
+        // Mettre à jour dans tous les matchs classiques de la journée
+        if (dayData.matches && dayData.matches[division]) {
+            dayData.matches[division].forEach(match => {
+                if (match.player1 === oldName) {
+                    match.player1 = newName;
+                    matchesUpdated++;
+                }
+                if (match.player2 === oldName) {
+                    match.player2 = newName;
+                    matchesUpdated++;
+                }
+                if (match.winner === oldName) {
+                    match.winner = newName;
+                }
+            });
+        }
+
+        // Mettre à jour dans les poules et phases finales de la journée
+        if (dayData.pools && dayData.pools.divisions) {
+            const poolDiv = dayData.pools.divisions[division];
+            if (poolDiv) {
+                if (poolDiv.pools) {
+                    poolDiv.pools.forEach(pool => {
+                        for (let i = 0; i < pool.length; i++) {
+                            if (pool[i] === oldName) pool[i] = newName;
+                        }
+                    });
+                }
+                if (poolDiv.matches) {
+                    poolDiv.matches.forEach(match => {
+                        if (match.player1 === oldName) match.player1 = newName;
+                        if (match.player2 === oldName) match.player2 = newName;
+                        if (match.winner === oldName) match.winner = newName;
+                    });
+                }
+            }
+        }
+
+        if (dayData.pools && dayData.pools.manualFinalPhase && dayData.pools.manualFinalPhase.divisions) {
+            const finalDiv = dayData.pools.manualFinalPhase.divisions[division];
+            if (finalDiv) {
+                if (finalDiv.qualified) {
+                    for (let i = 0; i < finalDiv.qualified.length; i++) {
+                        if (finalDiv.qualified[i] === oldName) finalDiv.qualified[i] = newName;
+                    }
+                }
+                if (finalDiv.rounds) {
+                    Object.values(finalDiv.rounds).forEach(round => {
+                        if (round.matches) {
+                            round.matches.forEach(match => {
+                                if (match.player1 === oldName) match.player1 = newName;
+                                if (match.player2 === oldName) match.player2 = newName;
+                                if (match.winner === oldName) match.winner = newName;
+                            });
+                        }
+                    });
+                }
+            }
+        }
+
+        return matchesUpdated;
+    }
+    window.editPlayerNameInDay = editPlayerNameInDay;
+
     // SUPPRESSION DE JOUEUR AVEC CONFIRMATION
     let deletePlayerData = null;
 
@@ -1878,8 +1959,23 @@ try {
             });
 
             if (renames.length > 0) {
-                // editPlayerName rafraîchit déjà tous les affichages
-                renames.forEach(r => editPlayerName(r.oldName, r.newName, r.division));
+                // Renommage limité à CETTE journée uniquement
+                let totalMatches = 0;
+                renames.forEach(r => {
+                    totalMatches += editPlayerNameInDay(r.oldName, r.newName, r.division, dayNumber);
+                });
+
+                saveToLocalStorage();
+
+                // Rafraîchir uniquement les affichages de cette journée
+                updatePlayersDisplay(dayNumber);
+                updateMatchesDisplay(dayNumber);
+                updateStats(dayNumber);
+                if (typeof updatePoolsDisplay === 'function') updatePoolsDisplay(dayNumber);
+                if (typeof updateManualFinalPhaseDisplay === 'function') updateManualFinalPhaseDisplay(dayNumber);
+                if (typeof updateGeneralRanking === 'function') updateGeneralRanking();
+
+                showNotification(`${renames.length} nom(s) modifié(s) dans la Journée ${dayNumber} uniquement (${totalMatches} match(s) mis à jour)`, 'success');
             } else {
                 // Aucun changement : restaurer l'affichage normal
                 updateMatchesDisplay(dayNumber);
