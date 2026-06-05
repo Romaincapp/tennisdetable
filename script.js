@@ -1463,9 +1463,15 @@ try {
         }
 
         const cleanValue = value === null || value === undefined ? '' : String(value).trim();
-        championship.days[dayNumber].matches[division][matchIndex].sets[setIndex][scoreField] = cleanValue;
+        const matchObj = championship.days[dayNumber].matches[division][matchIndex];
+        const wasCompleted = matchObj.completed;
+        matchObj.sets[setIndex][scoreField] = cleanValue;
         checkMatchCompletion(dayNumber, division, matchIndex);
         updateSingleMatchDisplay(dayNumber, division, matchIndex);
+        // Replier automatiquement le match dès qu'il vient d'être terminé
+        if (!wasCompleted && matchObj.completed) {
+            collapseMatch(dayNumber, division, matchIndex);
+        }
         saveToLocalStorage();
     }
     window.updateSetScore = updateSetScore;
@@ -1500,7 +1506,10 @@ try {
                         matchElement.style.borderColor = '#27ae60';
                     }
                 }, 200);
-                
+
+                // Replier automatiquement le match terminé (laisse un petit délai pour l'animation)
+                setTimeout(() => collapseMatch(dayNumber, division, matchIndex), 450);
+
                 showNotification(`Match terminé: ${championship.days[dayNumber].matches[division][matchIndex].winner} gagne!`, 'success');
             }
         }
@@ -1887,6 +1896,20 @@ try {
         }
     }
     window.toggleMatch = toggleMatch;
+
+    // REPLIER UN MATCH (utilisé après l'enregistrement d'un résultat)
+    // Le match reste pliable/dépliable au clic pour permettre une modification.
+    function collapseMatch(dayNumber, division, matchIndex) {
+        const matchElement = document.querySelector(`[data-match-id="d${dayNumber}-div${division}-m${matchIndex}"]`);
+        const arrowElement = document.getElementById(`match-arrow-${dayNumber}-${division}-${matchIndex}`);
+
+        if (!matchElement) return;
+        if (matchElement.classList.contains('collapsed')) return;
+
+        matchElement.classList.add('collapsed');
+        if (arrowElement) arrowElement.textContent = '▶';
+    }
+    window.collapseMatch = collapseMatch;
 
     // ÉDITION DES NOMS DE JOUEURS DIRECTEMENT DANS LES MATCHS
     const playerNameEditMode = {};
